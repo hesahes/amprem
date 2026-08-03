@@ -5,7 +5,7 @@ const API_KEY = 'diy-b7620da759b5ad0f';
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 
 // ============================================================
-//  STATE (dimuat dari localStorage atau default)
+//  STATE
 // ============================================================
 let state = {
   total: 0,
@@ -39,27 +39,70 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
-//  LOCALSTORAGE HELPERS
+//  NOTIFIKASI SUARA (Web Audio API)
+// ============================================================
+function playSound(type) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'success') {
+      osc.frequency.value = 880; // nada tinggi (A5)
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      osc.start();
+      setTimeout(() => {
+        osc.frequency.value = 1100; // naik dikit
+      }, 100);
+      setTimeout(() => {
+        osc.stop();
+        audioCtx.close();
+      }, 300);
+    } else if (type === 'error') {
+      osc.frequency.value = 200; // nada rendah
+      osc.type = 'sawtooth';
+      gain.gain.value = 0.2;
+      osc.start();
+      setTimeout(() => {
+        osc.stop();
+        audioCtx.close();
+      }, 400);
+    } else {
+      // default ding
+      osc.frequency.value = 660;
+      osc.type = 'sine';
+      gain.gain.value = 0.2;
+      osc.start();
+      setTimeout(() => {
+        osc.stop();
+        audioCtx.close();
+      }, 200);
+    }
+  } catch (e) {
+    // Browser gak support atau user belum interaksi
+    console.warn('Suara gak bisa diputar:', e);
+  }
+}
+
+// ============================================================
+//  LOCALSTORAGE
 // ============================================================
 function loadState() {
   try {
     const saved = localStorage.getItem('am_dashboard_state');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Gabungkan dengan default (untuk jaga-jaga jika ada properti baru)
       state = { ...state, ...parsed };
     }
-  } catch (e) {
-    console.warn('Gagal load state dari localStorage', e);
-  }
+  } catch (e) { console.warn('Gagal load state', e); }
 }
-
 function saveState() {
   try {
     localStorage.setItem('am_dashboard_state', JSON.stringify(state));
-  } catch (e) {
-    console.warn('Gagal save state ke localStorage', e);
-  }
+  } catch (e) { console.warn('Gagal save state', e); }
 }
 
 // ============================================================
@@ -82,6 +125,9 @@ function toast(msg, type = 'good') {
   toastEl.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  // Putar suara sesuai type
+  if (type === 'good') playSound('success');
+  else if (type === 'bad') playSound('error');
 }
 
 function addLog(message) {
@@ -93,8 +139,8 @@ function addLog(message) {
 
 function renderHistory() {
   historyEl.innerHTML = state.history.length
-    ? state.history.map(item => `
-        <div class="history-item">
+    ? state.history.map((item, i) => `
+        <div class="history-item" style="animation-delay:${i * 0.05}s">
           <div>
             <strong>${escapeHtml(item.email)}</strong>
             <span>${escapeHtml(item.result)} ${item.tag ? '· ' + escapeHtml(item.tag) : ''}</span>
@@ -110,7 +156,6 @@ function updateStats() {
   document.getElementById('successCount').textContent = state.success;
   document.getElementById('failedCount').textContent = state.failed;
   document.getElementById('todayCount').textContent = state.today;
-  // Simpan setiap kali stat berubah
   saveState();
 }
 
@@ -125,20 +170,35 @@ function setStatus(title, text) {
   statusText.textContent = text;
 }
 
+// ============================================================
+//  CONFETTI UPGRADE (Lebih Meriah)
+// ============================================================
 function confettiBurst() {
   confettiEl.innerHTML = '';
-  const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444'];
-  for (let i = 0; i < 24; i++) {
+  const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
+  const shapes = ['circle', 'square', 'triangle'];
+  const count = 45; // lebih banyak
+
+  for (let i = 0; i < count; i++) {
     const piece = document.createElement('i');
+    const size = 6 + Math.random() * 12;
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
     piece.style.left = Math.random() * 100 + 'vw';
-    piece.style.background = colors[i % colors.length];
-    piece.style.animationDuration = (0.9 + Math.random() * 0.6) + 's';
-    piece.style.transform = `translateY(0) rotate(${Math.random() * 180}deg)`;
-    piece.style.width = (8 + Math.random() * 7) + 'px';
-    piece.style.height = (10 + Math.random() * 10) + 'px';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = (0.8 + Math.random() * 1.0) + 's';
+    piece.style.width = size + 'px';
+    piece.style.height = size + 'px';
+    piece.style.borderRadius = shape === 'circle' ? '50%' : shape === 'square' ? '2px' : '0';
+    piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+    // triangle pake clip-path
+    if (shape === 'triangle') {
+      piece.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      piece.style.borderRadius = '0';
+    }
     confettiEl.appendChild(piece);
   }
-  setTimeout(() => confettiEl.innerHTML = '', 1700);
+  // Bersihkan setelah 2 detik
+  setTimeout(() => confettiEl.innerHTML = '', 2000);
 }
 
 function validateEmail(email) {
@@ -160,7 +220,6 @@ function pushResult(ok, email, detail) {
   if (state.history.length > 8) state.history.pop();
   renderHistory();
   updateStats();
-  // saveState() sudah dipanggil di updateStats
 }
 
 // ============================================================
@@ -258,7 +317,7 @@ async function runAction() {
       } else {
         if (data.data && data.data.status === 'activated') {
           toast('🎉 Aktivasi berhasil!', 'good');
-          confettiBurst();
+          confettiBurst(); // 🎊 meriah!
           setProgress(3);
           pushResult(true, email, data.message);
           emailEl.value = '';
@@ -356,10 +415,10 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-//  INIT (Load state dari localStorage)
+//  INIT
 // ============================================================
-loadState();                 // baca data tersimpan
-renderHistory();            // tampilkan history
-updateStats();              // update angka stats
-setMode(state.mode || 'send'); // set mode terakhir
-setProgress(0);             // reset progress bar
+loadState();
+renderHistory();
+updateStats();
+setMode(state.mode || 'send');
+setProgress(0);
