@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AM Premium • Aman</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --bg2:#111827;
+    --card:rgba(15,23,42,.76);
+    --line:rgba(255,255,255,.10);
+    --text:#e5e7eb;
+    --muted:#94a3b8;
+    --good:#22c55e;
+    --bad:#ef4444;
+    --warn:#f59e0b;
+    --accent:#60a5fa;
+    --accent2:#8b5cf6;
+  }
+  [data-theme="light"]{
+    --bg:#eef2ff;
+    --bg2:#f8fafc;
+    --card:rgba(255,255,255,.80);
+    --line:rgba(15,23,42,.10);
+    --text:#0f172a;
+    --muted:#475569;
+    --accent:#2563eb;
+    --accent2:#7c3aed;
+  }
+  *{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  body{
+    min-height:100vh;
+    color:var(--text);
+    background:
+      radial-gradient(circle at top left, rgba(96,165,250,.18), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(139,92,246,.16), transparent 35%),
+      linear-gradient(135deg, var(--bg), var(--bg2));
+    padding:24px;
+  }
+  .app{
+    max-width:760px;
+    margin:0 auto;
+    animation:fadeIn .45s ease both;
+  }
+  @keyframes fadeIn{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .logo{
+    width:46px;
+    height:46px;
+    border-radius:15px;
+    display:grid;
+    place-items:center;
+    color:#fff;
+    font-weight:800;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow:0 16px 30px rgba(59,130,246,.22);
+  }
+  .brand h1{
+    font-size:22px;
+    line-height:1.1;
+    letter-spacing:-.03em;
+  }
+  .brand p{
+    color:var(--muted);
+    font-size:13px;
+    margin-top:4px;
+  }
+  .actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  button{
+    border:none;
+    border-radius:14px;
+    padding:12px 16px;
+    font-weight:700;
+    cursor:pointer;
+    transition:.18s ease;
+  }
+  button:hover{ transform:translateY(-1px); }
+  button:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+  .btn-primary{
+    color:#fff;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .btn-ghost{
+    color:var(--text);
+    background:rgba(255,255,255,.08);
+    border:1px solid var(--line);
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:24px;
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    box-shadow:0 18px 50px rgba(0,0,0,.18);
+  }
+  .card h2{
+    font-size:18px;
+    margin-bottom:8px;
+    letter-spacing:-.02em;
+  }
+  .sub{
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:18px;
+    line-height:1.5;
+  }
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .stat{
+    padding:14px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+  }
+  .stat .label{
+    color:var(--muted);
+    font-size:12px;
+    margin-bottom:8px;
+  }
+  .stat .value{
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:-.03em;
+  }
+  .field{
+    display:grid;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  label{
+    font-size:13px;
+    color:var(--muted);
+  }
+  input{
+    width:100%;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.05);
+    color:var(--text);
+    padding:13px 14px;
+    outline:none;
+  }
+  input:focus{
+    border-color:rgba(96,165,250,.55);
+    box-shadow:0 0 0 4px rgba(96,165,250,.12);
+  }
+  .row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .progress{
+    margin:14px 0 18px;
+    display:grid;
+    gap:10px;
+  }
+  .steps{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .step{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    border-radius:16px;
+    padding:12px;
+    text-align:center;
+    font-size:13px;
+    color:var(--muted);
+    transition:.2s ease;
+  }
+  .step.active{
+    color:#fff;
+    background:linear-gradient(135deg, rgba(96,165,250,.18), rgba(139,92,246,.14));
+    border-color:rgba(96,165,250,.28);
+    transform:translateY(-1px);
+  }
+  .bar{
+    width:100%;
+    height:10px;
+    border-radius:999px;
+    overflow:hidden;
+    background:rgba(255,255,255,.08);
+    border:1px solid var(--line);
+  }
+  .bar > div{
+    width:0%;
+    height:100%;
+    border-radius:999px;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    transition:width .25s ease;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:12px;
+  }
+  .status{
+    margin-top:14px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    padding:14px;
+  }
+  .status strong{ display:block; margin-bottom:6px; }
+  .status p{ color:var(--muted); font-size:13px; line-height:1.5; }
+  .log{
+    height:200px;
+    overflow:auto;
+    padding-right:4px;
+    display:grid;
+    gap:8px;
+    margin-top:6px;
+  }
+  .log-item{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    border-radius:14px;
+    padding:10px 13px;
+    font-size:13px;
+    line-height:1.45;
+  }
+  .log-item small{
+    display:block;
+    color:var(--muted);
+    margin-bottom:4px;
+    font-size:11px;
+  }
+  .history{
+    display:grid;
+    gap:10px;
+    margin-top:6px;
+  }
+  .history-item{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:center;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    border-radius:14px;
+    padding:10px 13px;
+    font-size:13px;
+  }
+  .history-item span{
+    color:var(--muted);
+    display:block;
+    font-size:12px;
+    margin-top:4px;
+  }
+  .toast{
+    position:fixed;
+    right:18px;
+    bottom:18px;
+    min-width:220px;
+    max-width:92vw;
+    padding:12px 14px;
+    border-radius:14px;
+    color:white;
+    background:rgba(15,23,42,.94);
+    border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 18px 45px rgba(0,0,0,.28);
+    transform:translateY(16px);
+    opacity:0;
+    pointer-events:none;
+    transition:.22s ease;
+    z-index:9999;
+  }
+  .toast.show{ transform:translateY(0); opacity:1; }
+  .toast.good{ border-color:rgba(34,197,94,.35); }
+  .toast.bad{ border-color:rgba(239,68,68,.35); }
+  .toast.warn{ border-color:rgba(245,158,11,.35); }
+  .confetti{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .confetti i{
+    position:absolute;
+    width:10px;
+    height:16px;
+    top:-24px;
+    border-radius:3px;
+    background:var(--accent);
+    animation:fall 1.15s linear forwards;
+  }
+  @keyframes fall{
+    to{
+      transform:translateY(110vh) rotate(420deg);
+      opacity:0;
+    }
+  }
+  @media (max-width: 540px){
+    body{ padding:16px; }
+    .card{ padding:18px; border-radius:18px; }
+    .stats{ grid-template-columns:repeat(2,1fr); }
+    .row{ grid-template-columns:1fr; }
+    .actions{ width:100%; }
+    .actions button{ flex:1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div>
+        <h1>AM Premium</h1>
+        <p>@mahes.doang</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" id="themeBtn">Toggle Theme</button>
+      <button class="btn-ghost" id="exportBtn">Export JSON</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Activation</h2>
+    <div class="sub">Masukkan email, kirim, lalu verifikasi dengan link dari email.</div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Total</div>
+        <div class="value" id="totalCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Success</div>
+        <div class="value" id="successCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Failed</div>
+        <div class="value" id="failedCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Today</div>
+        <div class="value" id="todayCount">0</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="email">Email AlightMotion</label>
+      <input id="email" type="email" placeholder="contoh@gmail.com" autocomplete="email" />
+    </div>
+
+    <div class="field" id="linkField" style="display:none;">
+      <label for="link">Link Verifikasi (dari email)</label>
+      <input id="link" type="text" placeholder="https://alight-creative.firebaseapp.com/..." />
+    </div>
+
+    <div class="field">
+      <label for="tag">Tag (opsional)</label>
+      <input id="tag" type="text" placeholder="misal: user1" />
+    </div>
+
+    <div class="progress">
+      <div class="steps">
+        <div class="step active" data-step="0">Send</div>
+        <div class="step">Waiting</div>
+        <div class="step">Verify</div>
+        <div class="step">Done</div>
+      </div>
+      <div class="bar"><div id="barFill"></div></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-primary" id="actionBtn">Send</button>
+      <button class="btn-ghost" id="copyBtn" style="display:none;">Copy Link</button>
+      <button class="btn-ghost" id="clearBtn">Clear</button>
+    </div>
+
+    <div class="status" id="statusBox">
+      <strong id="statusTitle">Ready</strong>
+      <p id="statusText">Isi email lalu kirim.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px;">
+    <h2>Log & History</h2>
+    <div class="log" id="log"></div>
+    <h2 style="margin-top:18px;">History</h2>
+    <div class="history" id="history"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="confetti" id="confetti"></div>
+
+<script>
+  // === STATE ===
+  const state = {
+    total: 0,
+    success: 0,
+    failed: 0,
+    today: 0,
+    history: [],
+    startedAt: null,
+    mode: 'send'
+  };
+
+  // === DOM REFS ===
+  const emailEl = document.getElementById('email');
+  const linkEl = document.getElementById('link');
+  const tagEl = document.getElementById('tag');
+  const actionBtn = document.getElementById('actionBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const themeBtn = document.getElementById('themeBtn');
+  const logEl = document.getElementById('log');
+  const historyEl = document.getElementById('history');
+  const toastEl = document.getElementById('toast');
+  const confettiEl = document.getElementById('confetti');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusText = document.getElementById('statusText');
+  const barFill = document.getElementById('barFill');
+  const steps = [...document.querySelectorAll('.step')];
+  const linkField = document.getElementById('linkField');
+
+  // === HELPERS ===
+  const escapeHtml = (text) => String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function toast(msg, type = 'good') {
+    toastEl.className = 'toast ' + type;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  }
+
+  function addLog(message) {
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerHTML = `<small>${now()}</small> ${escapeHtml(message)}`;
+    logEl.prepend(item);
+  }
+
+  function renderHistory() {
+    historyEl.innerHTML = state.history.length
+      ? state.history.map(item => `
+          <div class="history-item">
+            <div>
+              <strong>${escapeHtml(item.email)}</strong>
+              <span>${escapeHtml(item.result)} ${item.tag ? '· ' + escapeHtml(item.tag) : ''}</span>
+            </div>
+            <div>${escapeHtml(item.time)}</div>
+          </div>
+        `).join('')
+      : `<div class="history-item"><div><strong>Belum ada riwayat</strong><span>Hasil akan muncul di sini.</span></div><div>—</div></div>`;
+  }
+
+  function updateStats() {
+    document.getElementById('totalCount').textContent = state.total;
+    document.getElementById('successCount').textContent = state.success;
+    document.getElementById('failedCount').textContent = state.failed;
+    document.getElementById('todayCount').textContent = state.today;
+  }
+
+  function setProgress(stepIndex) {
+    steps.forEach((el, i) => el.classList.toggle('active', i <= stepIndex));
+    const pct = [0, 33, 66, 100][stepIndex] ?? 0;
+    barFill.style.width = pct + '%';
+  }
+
+  function setStatus(title, text) {
+    statusTitle.textContent = title;
+    statusText.textContent = text;
+  }
+
+  function confettiBurst() {
+    confettiEl.innerHTML = '';
+    const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444'];
+    for (let i = 0; i < 24; i++) {
+      const piece = document.createElement('i');
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = colors[i % colors.length];
+      piece.style.animationDuration = (0.9 + Math.random() * 0.6) + 's';
+      piece.style.transform = `translateY(0) rotate(${Math.random() * 180}deg)`;
+      piece.style.width = (8 + Math.random() * 7) + 'px';
+      piece.style.height = (10 + Math.random() * 10) + 'px';
+      confettiEl.appendChild(piece);
+    }
+    setTimeout(() => confettiEl.innerHTML = '', 1700);
+  }
+
+  function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function pushResult(ok, email, detail) {
+    state.total += 1;
+    state.today += 1;
+    if (ok) state.success += 1;
+    else state.failed += 1;
+    state.history.unshift({
+      email,
+      result: ok ? 'Success' : 'Failed',
+      detail,
+      tag: tagEl.value.trim(),
+      time: now()
+    });
+    if (state.history.length > 8) state.history.pop();
+    renderHistory();
+    updateStats();
+  }
+
+  // === UI MODE SWITCH ===
+  function setMode(mode) {
+    state.mode = mode;
+    if (mode === 'send') {
+      actionBtn.textContent = 'Send';
+      actionBtn.className = 'btn-primary';
+      copyBtn.style.display = 'none';
+      linkField.style.display = 'none';
+      setProgress(0);
+      setStatus('Ready', 'Isi email lalu kirim.');
+    } else {
+      actionBtn.textContent = 'Verify';
+      actionBtn.className = 'btn-primary';
+      copyBtn.style.display = 'inline-block';
+      linkField.style.display = 'block';
+      setProgress(2);
+      setStatus('Ready', 'Tempelkan link verifikasi lalu klik Verify.');
+      linkEl.focus();
+    }
+  }
+
+  // === MAIN ACTION ===
+  async function runAction() {
+    const email = emailEl.value.trim();
+    const tag = tagEl.value.trim();
+
+    if (!validateEmail(email)) {
+      setStatus('Error', 'Email tidak valid.');
+      toast('Email tidak valid.', 'bad');
+      addLog('Email tidak valid.');
+      return;
+    }
+
+    if (state.mode === 'verify') {
+      const link = linkEl.value.trim();
+      if (!link) {
+        setStatus('Error', 'Link verifikasi wajib diisi.');
+        toast('Masukkan link verifikasi.', 'bad');
+        addLog('Link verifikasi kosong.');
+        return;
+      }
+    }
+
+    actionBtn.disabled = true;
+    const action = state.mode;
+
+    if (action === 'send') {
+      setProgress(0);
+      setStatus('Sending...', 'Mengirim email verifikasi...');
+      addLog(`Send started for ${email}${tag ? ' [' + tag + ']' : ''}`);
+    } else {
+      setProgress(2);
+      setStatus('Verifying...', 'Memproses verifikasi...');
+      addLog(`Verify started for ${email}${tag ? ' [' + tag + ']' : ''}`);
+    }
+
+    try {
+      // 🔥 GANTI: panggil Netlify Function, bukan API langsung
+      const payload = { action, email };
+      if (action === 'verify') payload.link = linkEl.value.trim();
+
+      const res = await fetch('/.netlify/functions/am-api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Server error');
+      }
+
+      if (data.success) {
+        setStatus('Success', data.message || 'Done');
+        addLog(`✅ ${data.message}`);
+
+        if (action === 'send') {
+          toast('Email terkirim! Cek inbox/spam lalu verifikasi.', 'good');
+          setProgress(1);
+          pushResult(true, email, data.message);
+          linkEl.value = '';
+          setMode('verify');
+          linkEl.focus();
+          setStatus('Waiting for link', 'Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
+        } else {
+          if (data.data && data.data.status === 'activated') {
+            toast('🎉 Aktivasi berhasil!', 'good');
+            confettiBurst();
+            setProgress(3);
+            pushResult(true, email, data.message);
+            emailEl.value = '';
+            linkEl.value = '';
+            emailEl.focus();
+            setMode('send');
+            setStatus('Done', 'Akun premium aktif!');
+          } else {
+            toast('Verifikasi berhasil.', 'good');
+            setProgress(2);
+            pushResult(true, email, data.message);
+          }
+        }
+      } else {
+        throw new Error(data.message || 'API gagal');
+      }
+    } catch (err) {
+      setStatus('Failed', err.message);
+      addLog(`❌ ${err.message}`);
+      toast(err.message, 'bad');
+      pushResult(false, email, err.message);
+      if (action === 'send') setProgress(0);
+      else setProgress(2);
+    } finally {
+      actionBtn.disabled = false;
+    }
+  }
+
+  // === EVENT LISTENERS ===
+  actionBtn.addEventListener('click', runAction);
+
+  copyBtn.addEventListener('click', async () => {
+    const link = linkEl.value.trim();
+    if (!link) {
+      toast('Tidak ada link untuk disalin.', 'warn');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('Link disalin.', 'good');
+    } catch {
+      toast('Gagal menyalin link.', 'bad');
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    emailEl.value = '';
+    linkEl.value = '';
+    tagEl.value = '';
+    setMode('send');
+    toast('Form dibersihkan.', 'good');
+    emailEl.focus();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    const data = {
+      stats: state,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dashboard-history.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('JSON diexport.', 'good');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      runAction();
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      clearBtn.click();
+    }
+  });
+
+  // === THEME ===
+  const root = document.documentElement;
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  root.setAttribute('data-theme', savedTheme);
+  themeBtn.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    toast(`Theme ${next}.`, 'good');
+  });
+
+  // === INIT ===
+  setMode('send');
+  updateStats();
+  renderHistory();
+  setProgress(0);
+</script>
+</body>
+</html>
