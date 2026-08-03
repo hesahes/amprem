@@ -1,4 +1,12 @@
-// === STATE ===
+// ============================================================
+//  KONFIGURASI API (LANGSUNG DI SINI)
+// ============================================================
+const API_KEY = 'diy-b7620da759b5ad0f';
+const API_URL = 'https://diyymotion.vercel.app/api/am-api';
+
+// ============================================================
+//  STATE
+// ============================================================
 const state = {
   total: 0,
   success: 0,
@@ -9,7 +17,9 @@ const state = {
   mode: 'send'
 };
 
-// === DOM REFS ===
+// ============================================================
+//  DOM REFS
+// ============================================================
 const emailEl = document.getElementById('email');
 const linkEl = document.getElementById('link');
 const tagEl = document.getElementById('tag');
@@ -28,7 +38,9 @@ const barFill = document.getElementById('barFill');
 const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
-// === HELPERS ===
+// ============================================================
+//  HELPERS
+// ============================================================
 const escapeHtml = (text) => String(text)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -124,7 +136,9 @@ function pushResult(ok, email, detail) {
   updateStats();
 }
 
-// === UI MODE SWITCH ===
+// ============================================================
+//  UI MODE SWITCH
+// ============================================================
 function setMode(mode) {
   state.mode = mode;
   if (mode === 'send') {
@@ -145,7 +159,9 @@ function setMode(mode) {
   }
 }
 
-// === MAIN ACTION ===
+// ============================================================
+//  MAIN ACTION (LANGSUNG PAKE API KEY DI FRONTEND)
+// ============================================================
 async function runAction() {
   const email = emailEl.value.trim();
   const tag = tagEl.value.trim();
@@ -184,10 +200,12 @@ async function runAction() {
     const payload = { action, email };
     if (action === 'verify') payload.link = linkEl.value.trim();
 
-    const res = await fetch('/api/am-api', {
+    // ---------- LANGSUNG PAKAI API EKSTERNAL ----------
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
       },
       body: JSON.stringify(payload),
     });
@@ -242,7 +260,9 @@ async function runAction() {
   }
 }
 
-// === EVENT LISTENERS ===
+// ============================================================
+//  EVENT LISTENERS
+// ============================================================
 actionBtn.addEventListener('click', runAction);
 
 copyBtn.addEventListener('click', async () => {
@@ -294,7 +314,9 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// === THEME ===
+// ============================================================
+//  THEME
+// ============================================================
 const root = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'dark';
 root.setAttribute('data-theme', savedTheme);
@@ -306,7 +328,9 @@ themeBtn.addEventListener('click', () => {
   toast(`Theme ${next}.`, 'good');
 });
 
-// === INIT ===
+// ============================================================
+//  INIT
+// ============================================================
 setMode('send');
 updateStats();
 renderHistory();
