@@ -607,7 +607,7 @@
       const payload = { action, email };
       if (action === 'verify') payload.link = linkEl.value.trim();
 
-      const res = await fetch('/.netlify/functions/am-api', {
+      const res = await fetch('/api/am-api', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
