@@ -1,52 +1,32 @@
-exports.handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers };
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    let body;
-    try {
-      body = JSON.parse(event.body);
-    } catch {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Invalid JSON' }),
-      };
-    }
-
-    const { action, email, link } = body;
+    const { action, email, link } = req.body;
 
     if (!action || !email) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'action dan email wajib diisi' }),
-      };
+      return res.status(400).json({ error: 'action dan email wajib diisi' });
     }
 
     const apiKey = process.env.AM_API_KEY;
     if (!apiKey) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'API key tidak ditemukan di server' }),
-      };
+      return res.status(500).json({ error: 'API key tidak ditemukan di server' });
     }
 
     const payload = { action, email };
     if (action === 'verify') {
       if (!link) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Link wajib diisi untuk verify' }),
-        };
+        return res.status(400).json({ error: 'Link wajib diisi untuk verify' });
       }
       payload.link = link;
     }
@@ -62,16 +42,8 @@ exports.handler = async (event) => {
 
     const data = await response.json();
 
-    return {
-      statusCode: response.status,
-      headers,
-      body: JSON.stringify(data),
-    };
+    return res.status(response.status).json(data);
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message }),
-    };
+    return res.status(500).json({ error: error.message });
   }
-};
+}
