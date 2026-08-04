@@ -39,6 +39,27 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
+//  UTILITY — AMBIL PESAN ERROR DARI RESPONSE
+// ============================================================
+function getErrorMessage(data) {
+  if (!data) return 'Unknown error';
+  if (typeof data === 'string') return data;
+  if (typeof data === 'object') {
+    if (data.message) return data.message;
+    if (data.error) {
+      if (typeof data.error === 'object') return getErrorMessage(data.error);
+      return data.error;
+    }
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return String(data);
+    }
+  }
+  return String(data);
+}
+
+// ============================================================
 //  NOTIFIKASI SUARA (Web Audio API)
 // ============================================================
 function playSound(type) {
@@ -50,39 +71,26 @@ function playSound(type) {
     gain.connect(audioCtx.destination);
 
     if (type === 'success') {
-      osc.frequency.value = 880; // nada tinggi (A5)
+      osc.frequency.value = 880;
       osc.type = 'sine';
       gain.gain.value = 0.3;
       osc.start();
-      setTimeout(() => {
-        osc.frequency.value = 1100; // naik dikit
-      }, 100);
-      setTimeout(() => {
-        osc.stop();
-        audioCtx.close();
-      }, 300);
+      setTimeout(() => { osc.frequency.value = 1100; }, 100);
+      setTimeout(() => { osc.stop(); audioCtx.close(); }, 300);
     } else if (type === 'error') {
-      osc.frequency.value = 200; // nada rendah
+      osc.frequency.value = 200;
       osc.type = 'sawtooth';
       gain.gain.value = 0.2;
       osc.start();
-      setTimeout(() => {
-        osc.stop();
-        audioCtx.close();
-      }, 400);
+      setTimeout(() => { osc.stop(); audioCtx.close(); }, 400);
     } else {
-      // default ding
       osc.frequency.value = 660;
       osc.type = 'sine';
       gain.gain.value = 0.2;
       osc.start();
-      setTimeout(() => {
-        osc.stop();
-        audioCtx.close();
-      }, 200);
+      setTimeout(() => { osc.stop(); audioCtx.close(); }, 200);
     }
   } catch (e) {
-    // Browser gak support atau user belum interaksi
     console.warn('Suara gak bisa diputar:', e);
   }
 }
@@ -125,7 +133,6 @@ function toast(msg, type = 'good') {
   toastEl.classList.add('show');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
-  // Putar suara sesuai type
   if (type === 'good') playSound('success');
   else if (type === 'bad') playSound('error');
 }
@@ -170,15 +177,11 @@ function setStatus(title, text) {
   statusText.textContent = text;
 }
 
-// ============================================================
-//  CONFETTI UPGRADE (Lebih Meriah)
-// ============================================================
 function confettiBurst() {
   confettiEl.innerHTML = '';
   const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
   const shapes = ['circle', 'square', 'triangle'];
-  const count = 45; // lebih banyak
-
+  const count = 45;
   for (let i = 0; i < count; i++) {
     const piece = document.createElement('i');
     const size = 6 + Math.random() * 12;
@@ -189,15 +192,13 @@ function confettiBurst() {
     piece.style.width = size + 'px';
     piece.style.height = size + 'px';
     piece.style.borderRadius = shape === 'circle' ? '50%' : shape === 'square' ? '2px' : '0';
-    piece.style.transform = `rotate(${Math.random() * 360}deg)`;
-    // triangle pake clip-path
+    piece.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
     if (shape === 'triangle') {
       piece.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
       piece.style.borderRadius = '0';
     }
     confettiEl.appendChild(piece);
   }
-  // Bersihkan setelah 2 detik
   setTimeout(() => confettiEl.innerHTML = '', 2000);
 }
 
@@ -222,9 +223,6 @@ function pushResult(ok, email, detail) {
   updateStats();
 }
 
-// ============================================================
-//  UI MODE SWITCH
-// ============================================================
 function setMode(mode) {
   state.mode = mode;
   if (mode === 'send') {
@@ -247,7 +245,7 @@ function setMode(mode) {
 }
 
 // ============================================================
-//  MAIN ACTION
+//  MAIN ACTION — SUDAH DI-FIX PAKAI getErrorMessage()
 // ============================================================
 async function runAction() {
   const email = emailEl.value.trim();
@@ -276,11 +274,11 @@ async function runAction() {
   if (action === 'send') {
     setProgress(0);
     setStatus('Sending...', 'Mengirim email verifikasi...');
-    addLog(`Send started for ${email}${tag ? ' [' + tag + ']' : ''}`);
+    addLog('Send started for ' + email + (tag ? ' [' + tag + ']' : ''));
   } else {
     setProgress(2);
     setStatus('Verifying...', 'Memproses verifikasi...');
-    addLog(`Verify started for ${email}${tag ? ' [' + tag + ']' : ''}`);
+    addLog('Verify started for ' + email + (tag ? ' [' + tag + ']' : ''));
   }
 
   try {
@@ -299,12 +297,13 @@ async function runAction() {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || data.message || 'Server error');
+      // PAKAI getErrorMessage() biar gak [object Object]
+      throw new Error(getErrorMessage(data));
     }
 
     if (data.success) {
       setStatus('Success', data.message || 'Done');
-      addLog(`✅ ${data.message}`);
+      addLog('✅ ' + (data.message || 'Success'));
 
       if (action === 'send') {
         toast('Email terkirim! Cek inbox/spam lalu verifikasi.', 'good');
@@ -317,7 +316,7 @@ async function runAction() {
       } else {
         if (data.data && data.data.status === 'activated') {
           toast('🎉 Aktivasi berhasil!', 'good');
-          confettiBurst(); // 🎊 meriah!
+          confettiBurst();
           setProgress(3);
           pushResult(true, email, data.message);
           emailEl.value = '';
@@ -332,13 +331,15 @@ async function runAction() {
         }
       }
     } else {
-      throw new Error(data.message || 'API gagal');
+      // PAKAI getErrorMessage() biar gak [object Object]
+      throw new Error(getErrorMessage(data));
     }
   } catch (err) {
-    setStatus('Failed', err.message);
-    addLog(`❌ ${err.message}`);
-    toast(err.message, 'bad');
-    pushResult(false, email, err.message);
+    const errMsg = err.message || 'Unknown error';
+    setStatus('Failed', errMsg);
+    addLog('❌ ' + errMsg);
+    toast(errMsg, 'bad');
+    pushResult(false, email, errMsg);
     if (action === 'send') setProgress(0);
     else setProgress(2);
   } finally {
@@ -411,7 +412,7 @@ themeBtn.addEventListener('click', () => {
   const next = current === 'dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
-  toast(`Theme ${next}.`, 'good');
+  toast('Theme ' + next + '.', 'good');
 });
 
 // ============================================================
