@@ -1,5 +1,5 @@
 // ============================================================
-//  KONFIGURASI API KEYS (7 keys)
+//  KONFIGURASI API KEYS
 // ============================================================
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
@@ -10,22 +10,16 @@ const API_KEYS = [
   { id: 5, key: 'diy-e1fdaeed1f67c0a3', label: 'Backup 5' },
   { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' }
 ];
-
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 
 // ============================================================
 //  STATE
 // ============================================================
 let state = {
-  total: 0,
-  success: 0,
-  failed: 0,
-  today: 0,
-  history: [],
-  startedAt: null,
-  mode: 'send',
-  activeKeyIndex: 0,           // index key yang sedang dipakai
-  keysStatus: {}               // { 'diy-...': { daily, hourly, ... } }
+  total: 0, success: 0, failed: 0, today: 0, history: [],
+  startedAt: null, mode: 'send',
+  activeKeyIndex: 0,
+  keysLimit: {} // { 'key': true/false }
 };
 
 // ============================================================
@@ -49,14 +43,14 @@ const barFill = document.getElementById('barFill');
 const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
-// Tempat untuk menampilkan daftar key
+// container keys
 const keysContainer = document.createElement('div');
 keysContainer.id = 'keysContainer';
 keysContainer.style.cssText = 'margin-top:16px; border-top:1px solid rgba(255,255,255,.06); padding-top:12px;';
 document.querySelector('.card').appendChild(keysContainer);
 
 // ============================================================
-//  UTILITY — AMBIL PESAN ERROR
+//  UTILITY
 // ============================================================
 function getErrorMessage(data) {
   if (!data) return 'Unknown error';
@@ -72,9 +66,6 @@ function getErrorMessage(data) {
   return String(data);
 }
 
-// ============================================================
-//  NOTIFIKASI SUARA
-// ============================================================
 function playSound(type) {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -96,7 +87,7 @@ function playSound(type) {
       osc.start();
       setTimeout(() => { osc.stop(); audioCtx.close(); }, 200);
     }
-  } catch (e) { console.warn('Suara gak bisa diputar:', e); }
+  } catch (e) { console.warn('suara error', e); }
 }
 
 // ============================================================
@@ -105,155 +96,46 @@ function playSound(type) {
 function loadState() {
   try {
     const saved = localStorage.getItem('am_dashboard_state');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      state = { ...state, ...parsed };
-      if (!state.keysStatus) state.keysStatus = {};
-    }
-  } catch (e) { console.warn('Gagal load state', e); }
+    if (saved) { const parsed = JSON.parse(saved); state = { ...state, ...parsed }; if (!state.keysLimit) state.keysLimit = {}; }
+  } catch (e) { console.warn('load state gagal', e); }
 }
 function saveState() {
-  try {
-    localStorage.setItem('am_dashboard_state', JSON.stringify(state));
-  } catch (e) { console.warn('Gagal save state', e); }
+  try { localStorage.setItem('am_dashboard_state', JSON.stringify(state)); } catch (e) { console.warn('save state gagal', e); }
 }
 
 // ============================================================
 //  HELPERS UI
 // ============================================================
-function escapeHtml(text) {
-  if (!text) return '';
-  const d = document.createElement('div');
-  d.textContent = text;
-  return d.innerHTML;
+function escapeHtml(t) { if (!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function now() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function toast(msg,type='good') {
+  toastEl.className='toast '+type; toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>toastEl.classList.remove('show'),2400);
+  if(type==='good') playSound('success'); else if(type==='bad') playSound('error');
 }
-
-function now() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-function toast(msg, type = 'good') {
-  toastEl.className = 'toast ' + type;
-  toastEl.textContent = msg;
-  toastEl.classList.add('show');
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
-  if (type === 'good') playSound('success');
-  else if (type === 'bad') playSound('error');
-}
-
-function addLog(message) {
-  const item = document.createElement('div');
-  item.className = 'log-item';
-  item.innerHTML = `<small>${now()}</small> ${escapeHtml(message)}`;
-  logEl.prepend(item);
-}
-
+function addLog(msg){ const item=document.createElement('div'); item.className='log-item'; item.innerHTML=`<small>${now()}</small> ${escapeHtml(msg)}`; logEl.prepend(item); }
 function renderHistory() {
-  historyEl.innerHTML = state.history.length
-    ? state.history.map((item, i) => `
-        <div class="history-item" style="animation-delay:${i * 0.05}s">
-          <div>
-            <strong>${escapeHtml(item.email)}</strong>
-            <span>${escapeHtml(item.result)} ${item.tag ? '· ' + escapeHtml(item.tag) : ''}</span>
-          </div>
-          <div>${escapeHtml(item.time)}</div>
-        </div>
-      `).join('')
-    : `<div class="history-item"><div><strong>Belum ada riwayat</strong><span>Hasil akan muncul di sini.</span></div><div>—</div></div>`;
+  historyEl.innerHTML = state.history.length ? state.history.map((item,i)=>`
+    <div class="history-item" style="animation-delay:${i*0.05}s">
+      <div><strong>${escapeHtml(item.email)}</strong><span>${escapeHtml(item.result)} ${item.tag?'· '+escapeHtml(item.tag):''}</span></div>
+      <div>${escapeHtml(item.time)}</div>
+    </div>`).join('') : `<div class="history-item"><div><strong>Belum ada riwayat</strong><span>Hasil akan muncul di sini.</span></div><div>—</div></div>`;
 }
-
-function updateStats() {
-  document.getElementById('totalCount').textContent = state.total;
-  document.getElementById('successCount').textContent = state.success;
-  document.getElementById('failedCount').textContent = state.failed;
-  document.getElementById('todayCount').textContent = state.today;
-  saveState();
-}
-
-function setProgress(stepIndex) {
-  steps.forEach((el, i) => el.classList.toggle('active', i <= stepIndex));
-  const pct = [0, 33, 66, 100][stepIndex] ?? 0;
-  barFill.style.width = pct + '%';
-}
-
-function setStatus(title, text) {
-  statusTitle.textContent = title;
-  statusText.textContent = text;
-}
-
-function confettiBurst() {
-  confettiEl.innerHTML = '';
-  const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
-  const shapes = ['circle', 'square', 'triangle'];
-  const count = 45;
-  for (let i = 0; i < count; i++) {
-    const piece = document.createElement('i');
-    const size = 6 + Math.random() * 12;
-    const shape = shapes[Math.floor(Math.random() * shapes.length)];
-    piece.style.left = Math.random() * 100 + 'vw';
-    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    piece.style.animationDuration = (0.8 + Math.random() * 1.0) + 's';
-    piece.style.width = size + 'px';
-    piece.style.height = size + 'px';
-    piece.style.borderRadius = shape === 'circle' ? '50%' : shape === 'square' ? '2px' : '0';
-    piece.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
-    if (shape === 'triangle') {
-      piece.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      piece.style.borderRadius = '0';
-    }
-    confettiEl.appendChild(piece);
-  }
-  setTimeout(() => confettiEl.innerHTML = '', 2000);
-}
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function pushResult(ok, email, detail) {
-  state.total += 1;
-  state.today += 1;
-  if (ok) state.success += 1;
-  else state.failed += 1;
-  state.history.unshift({
-    email,
-    result: ok ? 'Success' : 'Failed',
-    detail,
-    tag: tagEl.value.trim(),
-    time: now()
-  });
-  if (state.history.length > 8) state.history.pop();
-  renderHistory();
-  updateStats();
-}
-
-// ============================================================
-//  MODE SWITCH
-// ============================================================
-function setMode(mode) {
-  state.mode = mode;
-  if (mode === 'send') {
-    actionBtn.textContent = 'Send';
-    actionBtn.className = 'btn-primary';
-    copyBtn.style.display = 'none';
-    linkField.style.display = 'none';
-    setProgress(0);
-    setStatus('Ready', 'Isi email lalu kirim.');
-  } else {
-    actionBtn.textContent = 'Verify';
-    actionBtn.className = 'btn-primary';
-    copyBtn.style.display = 'inline-block';
-    linkField.style.display = 'block';
-    setProgress(2);
-    setStatus('Ready', 'Tempelkan link verifikasi lalu klik Verify.');
-    linkEl.focus();
-  }
+function updateStats(){ document.getElementById('totalCount').textContent=state.total; document.getElementById('successCount').textContent=state.success; document.getElementById('failedCount').textContent=state.failed; document.getElementById('todayCount').textContent=state.today; saveState(); }
+function setProgress(stepIndex){ steps.forEach((el,i)=>el.classList.toggle('active',i<=stepIndex)); const pct=[0,33,66,100][stepIndex]??0; barFill.style.width=pct+'%'; }
+function setStatus(title,text){ statusTitle.textContent=title; statusText.textContent=text; }
+function confettiBurst(){ confettiEl.innerHTML=''; const colors=['#60a5fa','#8b5cf6','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316']; const shapes=['circle','square','triangle']; for(let i=0;i<45;i++){ const piece=document.createElement('i'); const size=6+Math.random()*12; const shape=shapes[Math.floor(Math.random()*shapes.length)]; piece.style.left=Math.random()*100+'vw'; piece.style.background=colors[Math.floor(Math.random()*colors.length)]; piece.style.animationDuration=(0.8+Math.random()*1.0)+'s'; piece.style.width=size+'px'; piece.style.height=size+'px'; piece.style.borderRadius=shape==='circle'?'50%':shape==='square'?'2px':'0'; piece.style.transform='rotate('+(Math.random()*360)+'deg)'; if(shape==='triangle'){ piece.style.clipPath='polygon(50% 0%, 0% 100%, 100% 100%)'; piece.style.borderRadius='0'; } confettiEl.appendChild(piece); } setTimeout(()=>confettiEl.innerHTML='',2000); }
+function validateEmail(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function pushResult(ok,email,detail){ state.total+=1; state.today+=1; if(ok) state.success+=1; else state.failed+=1; state.history.unshift({email,result:ok?'Success':'Failed',detail,tag:tagEl.value.trim(),time:now()}); if(state.history.length>8) state.history.pop(); renderHistory(); updateStats(); }
+function setMode(mode){
+  state.mode=mode;
+  if(mode==='send'){ actionBtn.textContent='Send'; actionBtn.className='btn-primary'; copyBtn.style.display='none'; linkField.style.display='none'; setProgress(0); setStatus('Ready','Isi email lalu kirim.'); }
+  else { actionBtn.textContent='Verify'; actionBtn.className='btn-primary'; copyBtn.style.display='inline-block'; linkField.style.display='block'; setProgress(2); setStatus('Ready','Tempelkan link verifikasi lalu klik Verify.'); linkEl.focus(); }
   saveState();
 }
 
 // ============================================================
-//  CEK LIMIT & STATUS API KEYS
+//  CEK LIMIT VIA INFO (OPTIONAL)
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -263,43 +145,43 @@ async function fetchKeyStatus(apiKey) {
     if (data.success && data.data && data.data.quotas) {
       const q = data.data.quotas;
       return {
-        daily_limit: q.daily_limit || 0,
-        daily_used: q.daily_used || 0,
-        daily_remaining: q.daily_remaining || 0,
-        hourly_limit: q.hourly_limit || 0,
-        hourly_used: q.hourly_used || 0,
-        hourly_remaining: q.hourly_remaining || 0
+        daily_remaining: q.daily_remaining ?? 0,
+        hourly_remaining: q.hourly_remaining ?? 0
       };
     }
     return null;
-  } catch (e) {
-    console.warn('Gagal fetch status untuk key', apiKey, e);
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function updateAllKeysStatus() {
-  const statusMap = {};
+  const map = {};
   for (const item of API_KEYS) {
     const status = await fetchKeyStatus(item.key);
-    if (status) statusMap[item.key] = status;
-    // delay kecil biar gak terlalu banyak request bersamaan
+    if (status) {
+      map[item.key] = status;
+      // Jika remaining <= 0, tandai limit
+      if (status.daily_remaining <= 0 || status.hourly_remaining <= 0) {
+        state.keysLimit[item.key] = true;
+      } else {
+        state.keysLimit[item.key] = false;
+      }
+    } else {
+      // Jika gagal fetch, kita anggap available (jangan tandai limit)
+      state.keysLimit[item.key] = false;
+    }
     await new Promise(r => setTimeout(r, 300));
   }
-  state.keysStatus = statusMap;
   saveState();
   renderKeys();
-  return statusMap;
 }
 
 function isKeyAvailable(apiKey) {
-  const status = state.keysStatus[apiKey];
-  if (!status) return false;
-  return status.daily_remaining > 0 && status.hourly_remaining > 0;
+  // Jika belum ada status limit, anggap available
+  if (state.keysLimit[apiKey] === undefined) return true;
+  return !state.keysLimit[apiKey];
 }
 
 function getActiveKey() {
-  // Cari dari index aktif, lalu lanjut ke backup jika limit
   const startIdx = state.activeKeyIndex || 0;
   for (let i = 0; i < API_KEYS.length; i++) {
     const idx = (startIdx + i) % API_KEYS.length;
@@ -308,13 +190,13 @@ function getActiveKey() {
       if (idx !== state.activeKeyIndex) {
         state.activeKeyIndex = idx;
         saveState();
-        toast(`🔄 Beralih ke ${item.label} (${item.key.slice(0,8)}...)`, 'good');
+        toast(`🔄 Beralih ke ${item.label}`, 'good');
         addLog(`Switch key ke ${item.label}`);
       }
       return item;
     }
   }
-  return null; // semua habis
+  return null;
 }
 
 // ============================================================
@@ -324,97 +206,59 @@ function renderKeys() {
   if (!keysContainer) return;
   let html = `<div style="display:flex; flex-wrap:wrap; gap:8px; font-size:12px;">`;
   for (const item of API_KEYS) {
-    const status = state.keysStatus[item.key];
-    const available = status ? (status.daily_remaining > 0 && status.hourly_remaining > 0) : false;
+    const available = isKeyAvailable(item.key);
     const isActive = (state.activeKeyIndex === item.id);
-    const label = item.label;
-    const dailyLeft = status ? status.daily_remaining : '?';
-    const hourlyLeft = status ? status.hourly_remaining : '?';
-
-    let bgColor = 'rgba(255,255,255,.06)';
-    let textColor = '#94a3b8';
-    let borderColor = 'rgba(255,255,255,.06)';
-    if (isActive) {
-      bgColor = 'rgba(34,197,94,.15)';
-      textColor = '#22c55e';
-      borderColor = 'rgba(34,197,94,.3)';
-    } else if (!available && status) {
-      bgColor = 'rgba(239,68,68,.10)';
-      textColor = '#ef4444';
-      borderColor = 'rgba(239,68,68,.2)';
-    }
-
-    const disabledAttr = (!available) ? 'disabled' : '';
-
+    const daily = state.keysStatus?.[item.key]?.daily_remaining ?? '?';
+    const hourly = state.keysStatus?.[item.key]?.hourly_remaining ?? '?';
+    let bg = 'rgba(255,255,255,.06)';
+    let color = '#94a3b8';
+    let border = 'rgba(255,255,255,.06)';
+    if (isActive) { bg = 'rgba(34,197,94,.15)'; color = '#22c55e'; border = 'rgba(34,197,94,.3)'; }
+    else if (!available) { bg = 'rgba(239,68,68,.10)'; color = '#ef4444'; border = 'rgba(239,68,68,.2)'; }
     html += `
-      <div style="display:inline-flex; align-items:center; gap:4px; background:${bgColor}; border:1px solid ${borderColor}; border-radius:20px; padding:4px 10px; color:${textColor};">
-        <span style="font-weight:600;">${label}</span>
-        <span style="opacity:0.7;">${dailyLeft}/${hourlyLeft}</span>
-        <button 
-          data-keyid="${item.id}"
-          style="background:transparent; border:none; color:${textColor}; cursor:pointer; font-size:11px; padding:2px 6px; border-radius:10px; ${!available ? 'opacity:0.5; cursor:not-allowed;' : ''}"
-          ${disabledAttr}
-        >${isActive ? '✓' : 'pilih'}</button>
+      <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:4px 10px; color:${color};">
+        <span style="font-weight:600;">${item.label}</span>
+        <span style="opacity:0.7;">${daily}/${hourly}</span>
+        <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:11px; padding:2px 6px; border-radius:10px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
       </div>
     `;
   }
   html += `</div>`;
   keysContainer.innerHTML = html;
-
-  // Event listener untuk tombol pilih
   keysContainer.querySelectorAll('button[data-keyid]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', async () => {
       const id = parseInt(btn.dataset.keyid);
       const item = API_KEYS.find(k => k.id === id);
       if (!item) return;
-      if (!isKeyAvailable(item.key)) {
-        toast(`❌ ${item.label} sedang limit!`, 'bad');
-        return;
-      }
-      if (state.activeKeyIndex === id) {
-        toast(`✅ ${item.label} sudah aktif.`, 'good');
-        return;
-      }
+      if (!isKeyAvailable(item.key)) { toast(`❌ ${item.label} sedang limit!`,'bad'); return; }
+      if (state.activeKeyIndex === id) { toast(`✅ ${item.label} sudah aktif.`,'good'); return; }
       state.activeKeyIndex = id;
       saveState();
       renderKeys();
-      toast(`🔑 Beralih ke ${item.label}`, 'good');
+      toast(`🔑 Beralih ke ${item.label}`,'good');
       addLog(`Manual switch ke ${item.label}`);
-      // Refresh status setelah switch
       await updateAllKeysStatus();
     });
   });
 }
 
 // ============================================================
-//  MAIN ACTION (pakai getActiveKey)
+//  MAIN ACTION
 // ============================================================
 async function runAction() {
   const email = emailEl.value.trim();
   const tag = tagEl.value.trim();
 
-  if (!validateEmail(email)) {
-    setStatus('Error', 'Email tidak valid.');
-    toast('Email tidak valid.', 'bad');
-    addLog('Email tidak valid.');
-    return;
-  }
-
+  if (!validateEmail(email)) { setStatus('Error','Email tidak valid.'); toast('Email tidak valid.','bad'); addLog('Email tidak valid.'); return; }
   if (state.mode === 'verify') {
     const link = linkEl.value.trim();
-    if (!link) {
-      setStatus('Error', 'Link verifikasi wajib diisi.');
-      toast('Masukkan link verifikasi.', 'bad');
-      addLog('Link verifikasi kosong.');
-      return;
-    }
+    if (!link) { setStatus('Error','Link verifikasi wajib diisi.'); toast('Masukkan link verifikasi.','bad'); addLog('Link verifikasi kosong.'); return; }
   }
 
-  // Pilih key aktif
   const activeKeyItem = getActiveKey();
   if (!activeKeyItem) {
-    setStatus('Error', 'Semua API key limit!');
-    toast('❌ Semua API key habis kuota!', 'bad');
+    setStatus('Error','Semua API key limit!');
+    toast('❌ Semua API key habis kuota!','bad');
     addLog('Semua key limit');
     return;
   }
@@ -440,17 +284,28 @@ async function runAction() {
 
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-      },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+      body: JSON.stringify(payload)
     });
-
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(getErrorMessage(data));
+      // Cek apakah error karena limit
+      const errMsg = getErrorMessage(data);
+      if (errMsg.toLowerCase().includes('limit') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate')) {
+        state.keysLimit[API_KEY] = true;
+        saveState();
+        renderKeys();
+        toast(`❌ ${keyLabel} limit!`, 'bad');
+        addLog(`❌ ${keyLabel} limit`);
+        // Coba cari key lain
+        const nextKey = getActiveKey();
+        if (nextKey) {
+          toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
+        }
+        throw new Error(`${keyLabel} limit: ${errMsg}`);
+      }
+      throw new Error(errMsg);
     }
 
     if (data.success) {
@@ -458,26 +313,24 @@ async function runAction() {
       addLog(`✅ ${data.message} (${keyLabel})`);
 
       if (action === 'send') {
-        toast(`Email terkirim! (${keyLabel})`, 'good');
+        toast(`Email terkirim! (${keyLabel})`,'good');
         setProgress(1);
         pushResult(true, email, data.message);
         linkEl.value = '';
         setMode('verify');
         linkEl.focus();
-        setStatus('Waiting for link', 'Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
+        setStatus('Waiting for link','Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
       } else {
         if (data.data && data.data.status === 'activated') {
-          toast(`🎉 Aktivasi berhasil! (${keyLabel})`, 'good');
+          toast(`🎉 Aktivasi berhasil! (${keyLabel})`,'good');
           confettiBurst();
           setProgress(3);
           pushResult(true, email, data.message);
-          emailEl.value = '';
-          linkEl.value = '';
-          emailEl.focus();
+          emailEl.value = ''; linkEl.value = ''; emailEl.focus();
           setMode('send');
-          setStatus('Done', 'Akun premium aktif!');
+          setStatus('Done','Akun premium aktif!');
         } else {
-          toast(`Verifikasi berhasil. (${keyLabel})`, 'good');
+          toast(`Verifikasi berhasil. (${keyLabel})`,'good');
           setProgress(2);
           pushResult(true, email, data.message);
         }
@@ -495,7 +348,6 @@ async function runAction() {
     pushResult(false, email, errMsg);
     if (action === 'send') setProgress(0);
     else setProgress(2);
-    // Refresh status jika error mungkin karena limit
     await updateAllKeysStatus();
   } finally {
     actionBtn.disabled = false;
@@ -506,54 +358,29 @@ async function runAction() {
 //  EVENT LISTENERS
 // ============================================================
 actionBtn.addEventListener('click', runAction);
-
 copyBtn.addEventListener('click', async () => {
   const link = linkEl.value.trim();
-  if (!link) {
-    toast('Tidak ada link untuk disalin.', 'warn');
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(link);
-    toast('Link disalin.', 'good');
-  } catch {
-    toast('Gagal menyalin link.', 'bad');
-  }
+  if (!link) { toast('Tidak ada link untuk disalin.', 'warn'); return; }
+  try { await navigator.clipboard.writeText(link); toast('Link disalin.','good'); } catch { toast('Gagal menyalin link.','bad'); }
 });
-
 clearBtn.addEventListener('click', () => {
-  emailEl.value = '';
-  linkEl.value = '';
-  tagEl.value = '';
+  emailEl.value = ''; linkEl.value = ''; tagEl.value = '';
   setMode('send');
-  toast('Form dibersihkan.', 'good');
+  toast('Form dibersihkan.','good');
   emailEl.focus();
 });
-
 exportBtn.addEventListener('click', () => {
-  const data = {
-    stats: state,
-    exportedAt: new Date().toISOString()
-  };
+  const data = { stats: state, exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'dashboard-history.json';
-  a.click();
+  a.href = url; a.download = 'dashboard-history.json'; a.click();
   URL.revokeObjectURL(url);
-  toast('JSON diexport.', 'good');
+  toast('JSON diexport.','good');
 });
-
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    runAction();
-  }
-  if (e.ctrlKey && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    clearBtn.click();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runAction(); }
+  if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); clearBtn.click(); }
 });
 
 // ============================================================
@@ -571,7 +398,7 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-//  INIT — Load state, render, cek status semua key
+//  INIT
 // ============================================================
 (async function init() {
   loadState();
@@ -579,14 +406,9 @@ themeBtn.addEventListener('click', () => {
   updateStats();
   setMode(state.mode || 'send');
   setProgress(0);
-  // Cek status semua key
   await updateAllKeysStatus();
-  // Auto-select key yang available
   const active = getActiveKey();
-  if (!active) {
-    toast('⚠️ Semua API key limit!', 'bad');
-  } else {
-    toast(`🔑 Aktif: ${active.label}`, 'good');
-  }
+  if (active) toast(`🔑 Aktif: ${active.label}`, 'good');
+  else toast('⚠️ Semua API key limit!', 'bad');
   renderKeys();
 })();
