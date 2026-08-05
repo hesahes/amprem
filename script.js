@@ -164,14 +164,14 @@ async function fetchKeyStatus(apiKey) {
     const data = await res.json();
     if (data.success && data.data && data.data.quotas) {
       const q = data.data.quotas;
-      return {
-        daily_remaining: q.daily_remaining ?? 0,
-        hourly_remaining: q.hourly_remaining ?? 0
-      };
+      const daily = q.daily_remaining ?? 0;
+      const hourly = q.hourly_remaining ?? 0;
+      return { daily_remaining: daily, hourly_remaining: hourly };
     }
     // Jika response sukses false, cek error code
     if (!data.success && data.error && data.error.code) {
-      if (data.error.code === 'DAILY_LIMIT_REACHED' || data.error.code === 'HOURLY_LIMIT_REACHED' || data.error.code === 'INVALID_API_KEY') {
+      const code = data.error.code;
+      if (code === 'DAILY_LIMIT_REACHED' || code === 'HOURLY_LIMIT_REACHED' || code === 'INVALID_API_KEY') {
         return { daily_remaining: 0, hourly_remaining: 0, error: 'LIMIT' };
       }
     }
@@ -188,11 +188,16 @@ async function updateAllKeysStatus() {
       state.keysLimit[item.key] = true;
       state.keysQuota[item.key] = { daily_remaining: 0, hourly_remaining: 0 };
     } else if (status && status.daily_remaining !== undefined) {
-      state.keysLimit[item.key] = (status.daily_remaining <= 0 || status.hourly_remaining <= 0);
+      const limit = (status.daily_remaining <= 0 || status.hourly_remaining <= 0);
+      state.keysLimit[item.key] = limit;
       state.keysQuota[item.key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
     } else {
-      // info gagal → anggap available (tidak limit), kuota tidak diketahui
-      state.keysLimit[item.key] = false;
+      // info gagal → tidak ubah status limit (biarkan seperti sebelumnya)
+      // jika belum ada status, set false (available)
+      if (state.keysLimit[item.key] === undefined) {
+        state.keysLimit[item.key] = false;
+      }
+      // kuota tidak diketahui
       state.keysQuota[item.key] = null;
     }
     await new Promise(r => setTimeout(r, 300));
@@ -225,7 +230,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS — HIJAU = AVAILABLE, MERAH = LIMIT/INVALID
+//  RENDER KEYS
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -283,7 +288,7 @@ function renderKeys() {
 }
 
 // ============================================================
-//  MAIN ACTION — DETEKSI ERROR BERDASARKAN KODE
+//  MAIN ACTION
 // ============================================================
 async function runAction() {
   const email = emailEl.value.trim();
@@ -338,6 +343,7 @@ async function runAction() {
       // Jika error code adalah limit atau invalid key
       if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
         state.keysLimit[API_KEY] = true;
+        state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
         saveState();
         renderKeys();
         toast(`❌ ${keyLabel} ${errCode}`, 'bad');
@@ -350,16 +356,11 @@ async function runAction() {
     }
 
     if (data.success) {
-      // ============================================================
-      //  CEK APAKAH SEND BENAR-BENAR BERHASIL (ada order_id/next_step)
-      // ============================================================
+      // CEK APAKAH SEND BENAR-BENAR BERHASIL (ada order_id/next_step)
       if (action === 'send') {
         const hasOrderId = data.data && (data.data.order_id || data.data.next_step);
         if (!hasOrderId) {
-          // Gagal kirim (mungkin SEND_FAILED)
-          state.keysLimit[API_KEY] = false; // tidak kita limit, tapi kita anggap gagal
-          saveState();
-          renderKeys();
+          // Gagal kirim (mungkin SEND_FAILED) — tidak dianggap limit
           const warnMsg = '⚠️ API sukses tapi tidak ada order_id — kemungkinan email tidak terkirim.';
           setStatus('Warning', warnMsg);
           toast(warnMsg, 'warn');
@@ -394,6 +395,7 @@ async function runAction() {
           pushResult(true, email, data.message);
         }
       }
+      // update status key setelah aktivasi
       await updateAllKeysStatus();
     } else {
       // success: false
@@ -401,6 +403,7 @@ async function runAction() {
       const errCode = getErrorCode(data);
       if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
         state.keysLimit[API_KEY] = true;
+        state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
         saveState();
         renderKeys();
         toast(`❌ ${keyLabel} ${errCode}`, 'bad');
@@ -419,6 +422,7 @@ async function runAction() {
     pushResult(false, email, errMsg);
     if (action === 'send') setProgress(0);
     else setProgress(2);
+    // update status setelah error (misal limit)
     await updateAllKeysStatus();
   } finally {
     actionBtn.disabled = false;
