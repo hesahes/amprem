@@ -1,5 +1,5 @@
 // ============================================================
-//  KONFIGURASI API KEYS
+//  API KEYS
 // ============================================================
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
@@ -19,7 +19,7 @@ let state = {
   total: 0, success: 0, failed: 0, today: 0, history: [],
   startedAt: null, mode: 'send',
   activeKeyIndex: 0,
-  keysLimit: {} // { 'key': true/false }
+  keysLimit: {} // key: true/false
 };
 
 // ============================================================
@@ -87,7 +87,7 @@ function playSound(type) {
       osc.start();
       setTimeout(() => { osc.stop(); audioCtx.close(); }, 200);
     }
-  } catch (e) { console.warn('suara error', e); }
+  } catch (e) { console.warn('Suara error', e); }
 }
 
 // ============================================================
@@ -96,7 +96,11 @@ function playSound(type) {
 function loadState() {
   try {
     const saved = localStorage.getItem('am_dashboard_state');
-    if (saved) { const parsed = JSON.parse(saved); state = { ...state, ...parsed }; if (!state.keysLimit) state.keysLimit = {}; }
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state = { ...state, ...parsed };
+      if (!state.keysLimit) state.keysLimit = {};
+    }
   } catch (e) { console.warn('load state gagal', e); }
 }
 function saveState() {
@@ -104,7 +108,7 @@ function saveState() {
 }
 
 // ============================================================
-//  HELPERS UI
+//  UI HELPERS
 // ============================================================
 function escapeHtml(t) { if (!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 function now() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
@@ -135,7 +139,7 @@ function setMode(mode){
 }
 
 // ============================================================
-//  CEK LIMIT VIA INFO (OPTIONAL)
+//  CEK LIMIT VIA INFO
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -154,19 +158,16 @@ async function fetchKeyStatus(apiKey) {
 }
 
 async function updateAllKeysStatus() {
-  const map = {};
   for (const item of API_KEYS) {
     const status = await fetchKeyStatus(item.key);
     if (status) {
-      map[item.key] = status;
-      // Jika remaining <= 0, tandai limit
       if (status.daily_remaining <= 0 || status.hourly_remaining <= 0) {
         state.keysLimit[item.key] = true;
       } else {
         state.keysLimit[item.key] = false;
       }
     } else {
-      // Jika gagal fetch, kita anggap available (jangan tandai limit)
+      // jika gagal fetch, anggap available (tidak limit)
       state.keysLimit[item.key] = false;
     }
     await new Promise(r => setTimeout(r, 300));
@@ -176,7 +177,6 @@ async function updateAllKeysStatus() {
 }
 
 function isKeyAvailable(apiKey) {
-  // Jika belum ada status limit, anggap available
   if (state.keysLimit[apiKey] === undefined) return true;
   return !state.keysLimit[apiKey];
 }
@@ -200,7 +200,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER DAFTAR KEY
+//  RENDER KEYS — HIJAU = AVAILABLE, MERAH = LIMIT
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -208,13 +208,28 @@ function renderKeys() {
   for (const item of API_KEYS) {
     const available = isKeyAvailable(item.key);
     const isActive = (state.activeKeyIndex === item.id);
-    const daily = state.keysStatus?.[item.key]?.daily_remaining ?? '?';
-    const hourly = state.keysStatus?.[item.key]?.hourly_remaining ?? '?';
+    const status = state.keysStatus?.[item.key];
+    const daily = status?.daily_remaining ?? '?';
+    const hourly = status?.hourly_remaining ?? '?';
+
+    // HIJAU jika available, MERAH jika limit
     let bg = 'rgba(255,255,255,.06)';
     let color = '#94a3b8';
     let border = 'rgba(255,255,255,.06)';
-    if (isActive) { bg = 'rgba(34,197,94,.15)'; color = '#22c55e'; border = 'rgba(34,197,94,.3)'; }
-    else if (!available) { bg = 'rgba(239,68,68,.10)'; color = '#ef4444'; border = 'rgba(239,68,68,.2)'; }
+    if (isActive) {
+      bg = 'rgba(34,197,94,.20)';
+      color = '#22c55e';
+      border = 'rgba(34,197,94,.4)';
+    } else if (available) {
+      bg = 'rgba(34,197,94,.10)';
+      color = '#22c55e';
+      border = 'rgba(34,197,94,.2)';
+    } else {
+      bg = 'rgba(239,68,68,.15)';
+      color = '#ef4444';
+      border = 'rgba(239,68,68,.3)';
+    }
+
     html += `
       <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:4px 10px; color:${color};">
         <span style="font-weight:600;">${item.label}</span>
@@ -225,6 +240,7 @@ function renderKeys() {
   }
   html += `</div>`;
   keysContainer.innerHTML = html;
+
   keysContainer.querySelectorAll('button[data-keyid]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = parseInt(btn.dataset.keyid);
@@ -290,7 +306,6 @@ async function runAction() {
     const data = await res.json();
 
     if (!res.ok) {
-      // Cek apakah error karena limit
       const errMsg = getErrorMessage(data);
       if (errMsg.toLowerCase().includes('limit') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate')) {
         state.keysLimit[API_KEY] = true;
@@ -298,7 +313,6 @@ async function runAction() {
         renderKeys();
         toast(`❌ ${keyLabel} limit!`, 'bad');
         addLog(`❌ ${keyLabel} limit`);
-        // Coba cari key lain
         const nextKey = getActiveKey();
         if (nextKey) {
           toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
@@ -335,7 +349,6 @@ async function runAction() {
           pushResult(true, email, data.message);
         }
       }
-      // Refresh status key setelah aktivasi (kurangi kuota)
       await updateAllKeysStatus();
     } else {
       throw new Error(getErrorMessage(data));
