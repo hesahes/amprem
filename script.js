@@ -14,8 +14,8 @@ const API_KEYS = [
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 const CACHE_KEY = 'am_keys_cache';
-const CACHE_EXPIRE = 60 * 1000; // 1 menit (lebih realtime)
-const POLL_INTERVAL = 30000; // 30 detik
+const CACHE_EXPIRE = 60 * 1000;
+const POLL_INTERVAL = 30000;
 
 // ============================================================
 //  STATE
@@ -127,7 +127,7 @@ function saveState() {
 }
 
 // ============================================================
-//  CACHE UNTUK STATUS KEY (1 MENIT)
+//  CACHE UNTUK STATUS KEY
 // ============================================================
 function loadCache() {
   try {
@@ -234,11 +234,8 @@ async function fetchAllKeysInBackground() {
   saveState();
   saveCache(newLimit, newQuota);
   renderKeys();
-  // Update status aktif jika key yang aktif tiba-tiba limit
   const active = getActiveKey();
-  if (active) {
-    // sudah aktif
-  } else {
+  if (!active) {
     toast('⚠️ Semua API key limit!', 'bad');
   }
 }
@@ -267,7 +264,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS (REALTIME)
+//  RENDER KEYS — LABEL JELAS DAILY / HOURLY
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -300,7 +297,7 @@ function renderKeys() {
     html += `
       <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:3px 8px; color:${color}; font-size:11px;">
         <span style="font-weight:600;">${item.label}</span>
-        <span style="opacity:0.7;">${daily}/${hourly}</span>
+        <span style="opacity:0.8; font-size:10px;">D:${daily} H:${hourly}</span>
         <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:10px; padding:2px 6px; border-radius:8px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
       </div>
     `;
@@ -543,9 +540,6 @@ function startPolling() {
     toast('⚠️ Semua API key limit!', 'bad');
   }
 
-  // Fetch pertama
   await fetchAllKeysInBackground();
-
-  // Mulai polling
   startPolling();
 })();
