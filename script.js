@@ -1,5 +1,5 @@
 // ============================================================
-//  API KEYS (8 keys)
+//  API KEYS (9 keys)
 // ============================================================
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
@@ -9,11 +9,13 @@ const API_KEYS = [
   { id: 4, key: 'diy-8b9fe47a701bf25f', label: 'Backup 4' },
   { id: 5, key: 'diy-e1fdaeed1f67c0a3', label: 'Backup 5' },
   { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' },
-  { id: 7, key: 'diy-6b5152cc66af369d', label: 'Backup 7' }
+  { id: 7, key: 'diy-6b5152cc66af369d', label: 'Backup 7' },
+  { id: 8, key: 'diy-418186856ce56b8b', label: 'Backup 8' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 const CACHE_KEY = 'am_keys_cache';
-const CACHE_EXPIRE = 5 * 60 * 1000; // 5 menit
+const CACHE_EXPIRE = 60 * 1000; // 1 menit (lebih realtime)
+const POLL_INTERVAL = 30000; // 30 detik
 
 // ============================================================
 //  STATE
@@ -125,7 +127,7 @@ function saveState() {
 }
 
 // ============================================================
-//  CACHE UNTUK STATUS KEY
+//  CACHE UNTUK STATUS KEY (1 MENIT)
 // ============================================================
 function loadCache() {
   try {
@@ -232,6 +234,13 @@ async function fetchAllKeysInBackground() {
   saveState();
   saveCache(newLimit, newQuota);
   renderKeys();
+  // Update status aktif jika key yang aktif tiba-tiba limit
+  const active = getActiveKey();
+  if (active) {
+    // sudah aktif
+  } else {
+    toast('⚠️ Semua API key limit!', 'bad');
+  }
 }
 
 function isKeyAvailable(apiKey) {
@@ -258,7 +267,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS
+//  RENDER KEYS (REALTIME)
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -497,6 +506,18 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
+//  POLLING REAL-TIME (30 DETIK)
+// ============================================================
+let pollTimer = null;
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    fetchAllKeysInBackground();
+  }, POLL_INTERVAL);
+}
+
+// ============================================================
 //  INIT
 // ============================================================
 (async function init() {
@@ -522,5 +543,9 @@ themeBtn.addEventListener('click', () => {
     toast('⚠️ Semua API key limit!', 'bad');
   }
 
-  fetchAllKeysInBackground();
+  // Fetch pertama
+  await fetchAllKeysInBackground();
+
+  // Mulai polling
+  startPolling();
 })();
