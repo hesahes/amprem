@@ -1,5 +1,5 @@
 // ============================================================
-//  API KEYS
+//  API KEYS (8 keys)
 // ============================================================
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
@@ -8,7 +8,8 @@ const API_KEYS = [
   { id: 3, key: 'diy-e14db7dad56de197', label: 'Backup 3' },
   { id: 4, key: 'diy-8b9fe47a701bf25f', label: 'Backup 4' },
   { id: 5, key: 'diy-e1fdaeed1f67c0a3', label: 'Backup 5' },
-  { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' }
+  { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' },
+  { id: 7, key: 'diy-6b5152cc66af369d', label: 'Backup 7' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 const CACHE_KEY = 'am_keys_cache';
@@ -177,7 +178,7 @@ function setMode(mode){
 }
 
 // ============================================================
-//  CEK LIMIT & KUOTA (PARALLEL + CACHE)
+//  CEK LIMIT & KUOTA (PARALLEL)
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -206,53 +207,7 @@ async function fetchKeyStatus(apiKey) {
   }
 }
 
-async function updateAllKeysStatus(force = false) {
-  // Jika tidak force, coba cache dulu
-  if (!force) {
-    const cached = loadCache();
-    if (cached) {
-      state.keysLimit = cached.keysLimit;
-      state.keysQuota = cached.keysQuota;
-      saveState();
-      renderKeys();
-      // tetap fetch di background untuk update
-      fetchAllKeysInBackground();
-      return;
-    }
-  }
-
-  // Fetch paralel semua key
-  const promises = API_KEYS.map(item => fetchKeyStatus(item.key));
-  const results = await Promise.all(promises);
-
-  const newLimit = {};
-  const newQuota = {};
-  for (let i = 0; i < API_KEYS.length; i++) {
-    const key = API_KEYS[i].key;
-    const status = results[i];
-    if (status && status.error === 'LIMIT') {
-      newLimit[key] = true;
-      newQuota[key] = { daily_remaining: 0, hourly_remaining: 0 };
-    } else if (status && status.daily_remaining !== undefined) {
-      const limit = (status.daily_remaining <= 0 || status.hourly_remaining <= 0);
-      newLimit[key] = limit;
-      newQuota[key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
-    } else {
-      // jika gagal, pertahankan status lama atau set false
-      newLimit[key] = state.keysLimit[key] || false;
-      newQuota[key] = state.keysQuota[key] || null;
-    }
-  }
-
-  state.keysLimit = newLimit;
-  state.keysQuota = newQuota;
-  saveState();
-  saveCache(newLimit, newQuota);
-  renderKeys();
-}
-
 async function fetchAllKeysInBackground() {
-  // fetch paralel tanpa blocking UI
   const promises = API_KEYS.map(item => fetchKeyStatus(item.key));
   const results = await Promise.all(promises);
   const newLimit = {};
@@ -356,7 +311,7 @@ function renderKeys() {
       renderKeys();
       toast(`🔑 Beralih ke ${item.label}`,'good');
       addLog(`Manual switch ke ${item.label}`);
-      await updateAllKeysStatus(true);
+      fetchAllKeysInBackground();
     });
   });
 }
@@ -466,7 +421,6 @@ async function runAction() {
           pushResult(true, email, data.message);
         }
       }
-      // update status di background
       fetchAllKeysInBackground();
     } else {
       const errMsg = getErrorMessage(data);
@@ -543,7 +497,7 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-//  INIT — CACHE DULU, FETCH DI BACKGROUND
+//  INIT
 // ============================================================
 (async function init() {
   loadState();
@@ -552,24 +506,21 @@ themeBtn.addEventListener('click', () => {
   setMode(state.mode || 'send');
   setProgress(0);
 
-  // Pertama, coba muat dari cache
   const cached = loadCache();
   if (cached) {
     state.keysLimit = cached.keysLimit;
     state.keysQuota = cached.keysQuota;
     saveState();
-    renderKeys();
-    const active = getActiveKey();
-    if (active) toast(`🔑 Aktif: ${active.label} (cache)`, 'good');
-    else toast('⚠️ Semua API key limit!', 'bad');
-    // Fetch di background
-    fetchAllKeysInBackground();
-  } else {
-    // Tidak ada cache, fetch langsung
-    await updateAllKeysStatus(true);
-    const active = getActiveKey();
-    if (active) toast(`🔑 Aktif: ${active.label}`, 'good');
-    else toast('⚠️ Semua API key limit!', 'bad');
-    renderKeys();
   }
+
+  renderKeys();
+
+  const active = getActiveKey();
+  if (active) {
+    toast(`🔑 Aktif: ${active.label}`, 'good');
+  } else {
+    toast('⚠️ Semua API key limit!', 'bad');
+  }
+
+  fetchAllKeysInBackground();
 })();
