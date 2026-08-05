@@ -1,8 +1,9 @@
+// scraper.js — Vercel-compatible (puppeteer-core + @sparticuz/chromium-min)
 const axios = require('axios');
 const { randomInt } = require('crypto');
 const cheerio = require('cheerio');
-const { connect } = require('puppeteer-real-browser');
-const { execSync } = require('child_process');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium-min');
 
 const CONFIG = {
   baseUrl: 'https://amprem.irfanjawa.com',
@@ -22,6 +23,9 @@ const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/120.0'
 ];
 
+// ============================================================
+//  UTILITY
+// ============================================================
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function randomString(length = 10) {
@@ -49,10 +53,37 @@ function generateEmail() {
   return randomString(10) + '@' + randomDomain();
 }
 
+// ============================================================
+//  LAUNCH BROWSER (Vercel / Local)
+// ============================================================
+async function getBrowser() {
+  const isVercel = !!process.env.VERCEL;
+  if (isVercel) {
+    // Vercel: pake remote chromium
+    return await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(
+        'https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar'
+      ),
+      headless: chromium.headless,
+      ignoreDefaultArgs: ['--disable-extensions'],
+    });
+  } else {
+    // Local: coba cari chromium
+    return await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+  }
+}
+
+// ============================================================
+//  FIREBASE OOB
+// ============================================================
 async function sendFirebaseVerification(email) {
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${CONFIG.firebaseApiKey}`;
   const payload = {
-    email: email,
+    email,
     requestType: "EMAIL_SIGNIN",
     continueUrl: "https://alightcreative.com",
     canHandleCodeInApp: true,
@@ -71,6 +102,9 @@ async function sendFirebaseVerification(email) {
   return res.status === 200;
 }
 
+// ============================================================
+//  TEMP MAIL (Generator.email)
+// ============================================================
 async function getInbox(email) {
   const [username, domain] = email.split('@');
   const url = `https://generator.email/${domain}/${username}`;
@@ -85,7 +119,7 @@ async function getInbox(email) {
     const loginLink = $('.mess_bodiyy a').attr('href');
     if (loginLink) return { link: loginLink };
     const body = $('.mess_bodiyy').text().trim();
-    const match = body.match(/https:\/\/alight-creative\.firebaseapp\.com[^\s"']+/i) || 
+    const match = body.match(/https:\/\/alight-creative\.firebaseapp\.com[^\s"']+/i) ||
                   body.match(/https:\/\/alightcreative\.com[^\s"']+/i);
     if (match) return { link: match[0] };
     return { link: null };
@@ -102,18 +136,15 @@ async function pollForLink(email, timeout = CONFIG.pollingTimeout) {
   return null;
 }
 
+// ============================================================
+//  TURNSTILE SOLVER (Vercel = ⚠️ TIDAK BERFUNGSI)
+// ============================================================
 async function getFreshTurnstileToken(isRegisterTab = true) {
-  let CHROME_PATH = '/usr/bin/chromium-browser';
-  try {
-    CHROME_PATH = execSync('which chromium-browser || which chromium || which google-chrome', { stdio: 'pipe' }).toString().trim();
-  } catch {}
-  const { browser, page } = await connect({
-    headless: false,
-    turnstile: true,
-    disableXvfb: false,
-    customConfig: { chromePath: CHROME_PATH },
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
+  // Peringatan: Di Vercel (headless), Turnstile tidak bisa dipecahkan.
+  // Ini hanya placeholder. Kamu butuh proxy/API eksternal untuk bypass.
+  console.warn('⚠️ Turnstile solver tidak berfungsi di Vercel (headless).');
+  const browser = await getBrowser();
+  const page = await browser.newPage();
   try {
     await page.goto(CONFIG.authUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(4000);
@@ -124,6 +155,7 @@ async function getFreshTurnstileToken(isRegisterTab = true) {
       });
       await sleep(4000);
     }
+    // Coba ambil token dari input (hanya berhasil jika Turnstile sudah terpecahkan)
     let token = '';
     let deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
@@ -136,7 +168,7 @@ async function getFreshTurnstileToken(isRegisterTab = true) {
     }
     const cookies = await page.cookies();
     await browser.close();
-    if (!token || token.length < 50) throw new Error('Gagal dapat token Turnstile');
+    if (!token || token.length < 50) throw new Error('Gagal dapat token Turnstile (headless)');
     return { token, cookies };
   } catch (e) {
     await browser.close();
@@ -144,6 +176,9 @@ async function getFreshTurnstileToken(isRegisterTab = true) {
   }
 }
 
+// ============================================================
+//  AMPREM CLIENT
+// ============================================================
 class AmpremClient {
   constructor(initialCookies = []) {
     this.sessionCookies = {};
@@ -199,6 +234,9 @@ class AmpremClient {
   }
 }
 
+// ============================================================
+//  MAIN PROCESS
+// ============================================================
 async function processAccount(email, password, isTempMail = true) {
   const regSolve = await getFreshTurnstileToken(true);
   const client = new AmpremClient(regSolve.cookies);
