@@ -19,7 +19,7 @@ let state = {
   total: 0, success: 0, failed: 0, today: 0, history: [],
   startedAt: null, mode: 'send',
   activeKeyIndex: 0,
-  keysLimit: {} // key: true/false
+  keysLimit: {}
 };
 
 // ============================================================
@@ -167,8 +167,8 @@ async function updateAllKeysStatus() {
         state.keysLimit[item.key] = false;
       }
     } else {
-      // jika gagal fetch, anggap available (tidak limit)
-      state.keysLimit[item.key] = false;
+      // Jika info gagal, tandai limit agar tidak dipakai (anggap invalid)
+      state.keysLimit[item.key] = true;
     }
     await new Promise(r => setTimeout(r, 300));
   }
@@ -200,7 +200,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS — HIJAU = AVAILABLE, MERAH = LIMIT
+//  RENDER KEYS — HIJAU = AVAILABLE, MERAH = LIMIT/INVALID
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -212,7 +212,6 @@ function renderKeys() {
     const daily = status?.daily_remaining ?? '?';
     const hourly = status?.hourly_remaining ?? '?';
 
-    // HIJAU jika available, MERAH jika limit
     let bg = 'rgba(255,255,255,.06)';
     let color = '#94a3b8';
     let border = 'rgba(255,255,255,.06)';
@@ -259,7 +258,7 @@ function renderKeys() {
 }
 
 // ============================================================
-//  MAIN ACTION
+//  MAIN ACTION — FIX DETEKSI KIRIM GAGAL
 // ============================================================
 async function runAction() {
   const email = emailEl.value.trim();
@@ -305,8 +304,12 @@ async function runAction() {
     });
     const data = await res.json();
 
+    // Tampilkan raw response di log agar bisa debug
+    addLog(`📦 Response: ${JSON.stringify(data).substring(0, 200)}...`);
+
     if (!res.ok) {
       const errMsg = getErrorMessage(data);
+      // Jika error karena limit, tandai key limit
       if (errMsg.toLowerCase().includes('limit') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate')) {
         state.keysLimit[API_KEY] = true;
         saveState();
@@ -314,15 +317,35 @@ async function runAction() {
         toast(`❌ ${keyLabel} limit!`, 'bad');
         addLog(`❌ ${keyLabel} limit`);
         const nextKey = getActiveKey();
-        if (nextKey) {
-          toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
-        }
+        if (nextKey) toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
         throw new Error(`${keyLabel} limit: ${errMsg}`);
       }
       throw new Error(errMsg);
     }
 
     if (data.success) {
+      // ============================================================
+      //  CEK APAKAH SEND BENAR-BENAR BERHASIL
+      // ============================================================
+      if (action === 'send') {
+        // Jika tidak ada order_id atau next_step, kemungkinan gagal
+        const hasOrderId = data.data && (data.data.order_id || data.data.next_step);
+        if (!hasOrderId) {
+          // Tandai key ini limit/invalid
+          state.keysLimit[API_KEY] = true;
+          saveState();
+          renderKeys();
+          const warnMsg = '⚠️ API mengembalikan sukses tapi tidak ada order_id. Kemungkinan email tidak terkirim.';
+          setStatus('Warning', warnMsg);
+          toast(warnMsg, 'warn');
+          addLog(`⚠️ ${warnMsg}`);
+          // Cari key lain
+          const nextKey = getActiveKey();
+          if (nextKey) toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
+          throw new Error(warnMsg);
+        }
+      }
+
       setStatus('Success', data.message || 'Done');
       addLog(`✅ ${data.message} (${keyLabel})`);
 
