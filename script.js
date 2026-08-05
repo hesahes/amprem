@@ -11,6 +11,8 @@ const API_KEYS = [
   { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
+const CACHE_KEY = 'am_keys_cache';
+const CACHE_EXPIRE = 5 * 60 * 1000; // 5 menit
 
 // ============================================================
 //  STATE
@@ -45,13 +47,11 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
-//  BUAT CONTAINER KEYS DI ATAS FORM (sebelum input email)
+//  BUAT CONTAINER KEYS DI ATAS FORM
 // ============================================================
 const keysContainer = document.createElement('div');
 keysContainer.id = 'keysContainer';
 keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border-radius:16px; border:1px solid rgba(255,255,255,.06);';
-// Sisipkan setelah elemen .sub dan sebelum .stats? Lebih tepat sebelum .field email
-// Kita sisipkan sebelum .field pertama (email)
 const firstField = document.querySelector('.field');
 if (firstField) {
   firstField.parentNode.insertBefore(keysContainer, firstField);
@@ -124,6 +124,28 @@ function saveState() {
 }
 
 // ============================================================
+//  CACHE UNTUK STATUS KEY
+// ============================================================
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() - data.timestamp > CACHE_EXPIRE) return null;
+    return data;
+  } catch { return null; }
+}
+function saveCache(keysLimit, keysQuota) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      keysLimit,
+      keysQuota
+    }));
+  } catch (e) { console.warn('save cache gagal', e); }
+}
+
+// ============================================================
 //  UI HELPERS
 // ============================================================
 function escapeHtml(t) { if (!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
@@ -155,7 +177,7 @@ function setMode(mode){
 }
 
 // ============================================================
-//  CEK LIMIT & KUOTA
+//  CEK LIMIT & KUOTA (PARALLEL + CACHE)
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -170,9 +192,7 @@ async function fetchKeyStatus(apiKey) {
     const data = await res.json();
     if (data.success && data.data && data.data.quotas) {
       const q = data.data.quotas;
-      const daily = q.daily_remaining ?? 0;
-      const hourly = q.hourly_remaining ?? 0;
-      return { daily_remaining: daily, hourly_remaining: hourly };
+      return { daily_remaining: q.daily_remaining ?? 0, hourly_remaining: q.hourly_remaining ?? 0 };
     }
     if (!data.success && data.error && data.error.code) {
       const code = data.error.code;
@@ -186,25 +206,76 @@ async function fetchKeyStatus(apiKey) {
   }
 }
 
-async function updateAllKeysStatus() {
-  for (const item of API_KEYS) {
-    const status = await fetchKeyStatus(item.key);
+async function updateAllKeysStatus(force = false) {
+  // Jika tidak force, coba cache dulu
+  if (!force) {
+    const cached = loadCache();
+    if (cached) {
+      state.keysLimit = cached.keysLimit;
+      state.keysQuota = cached.keysQuota;
+      saveState();
+      renderKeys();
+      // tetap fetch di background untuk update
+      fetchAllKeysInBackground();
+      return;
+    }
+  }
+
+  // Fetch paralel semua key
+  const promises = API_KEYS.map(item => fetchKeyStatus(item.key));
+  const results = await Promise.all(promises);
+
+  const newLimit = {};
+  const newQuota = {};
+  for (let i = 0; i < API_KEYS.length; i++) {
+    const key = API_KEYS[i].key;
+    const status = results[i];
     if (status && status.error === 'LIMIT') {
-      state.keysLimit[item.key] = true;
-      state.keysQuota[item.key] = { daily_remaining: 0, hourly_remaining: 0 };
+      newLimit[key] = true;
+      newQuota[key] = { daily_remaining: 0, hourly_remaining: 0 };
     } else if (status && status.daily_remaining !== undefined) {
       const limit = (status.daily_remaining <= 0 || status.hourly_remaining <= 0);
-      state.keysLimit[item.key] = limit;
-      state.keysQuota[item.key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
+      newLimit[key] = limit;
+      newQuota[key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
     } else {
-      if (state.keysLimit[item.key] === undefined) {
-        state.keysLimit[item.key] = false;
-      }
-      state.keysQuota[item.key] = null;
+      // jika gagal, pertahankan status lama atau set false
+      newLimit[key] = state.keysLimit[key] || false;
+      newQuota[key] = state.keysQuota[key] || null;
     }
-    await new Promise(r => setTimeout(r, 300));
   }
+
+  state.keysLimit = newLimit;
+  state.keysQuota = newQuota;
   saveState();
+  saveCache(newLimit, newQuota);
+  renderKeys();
+}
+
+async function fetchAllKeysInBackground() {
+  // fetch paralel tanpa blocking UI
+  const promises = API_KEYS.map(item => fetchKeyStatus(item.key));
+  const results = await Promise.all(promises);
+  const newLimit = {};
+  const newQuota = {};
+  for (let i = 0; i < API_KEYS.length; i++) {
+    const key = API_KEYS[i].key;
+    const status = results[i];
+    if (status && status.error === 'LIMIT') {
+      newLimit[key] = true;
+      newQuota[key] = { daily_remaining: 0, hourly_remaining: 0 };
+    } else if (status && status.daily_remaining !== undefined) {
+      const limit = (status.daily_remaining <= 0 || status.hourly_remaining <= 0);
+      newLimit[key] = limit;
+      newQuota[key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
+    } else {
+      newLimit[key] = state.keysLimit[key] || false;
+      newQuota[key] = state.keysQuota[key] || null;
+    }
+  }
+  state.keysLimit = newLimit;
+  state.keysQuota = newQuota;
+  saveState();
+  saveCache(newLimit, newQuota);
   renderKeys();
 }
 
@@ -232,7 +303,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS (di atas form)
+//  RENDER KEYS
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -285,7 +356,7 @@ function renderKeys() {
       renderKeys();
       toast(`🔑 Beralih ke ${item.label}`,'good');
       addLog(`Manual switch ke ${item.label}`);
-      await updateAllKeysStatus();
+      await updateAllKeysStatus(true);
     });
   });
 }
@@ -346,6 +417,7 @@ async function runAction() {
         state.keysLimit[API_KEY] = true;
         state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
         saveState();
+        saveCache(state.keysLimit, state.keysQuota);
         renderKeys();
         toast(`❌ ${keyLabel} ${errCode}`, 'bad');
         addLog(`❌ ${keyLabel} ${errCode}`);
@@ -394,7 +466,8 @@ async function runAction() {
           pushResult(true, email, data.message);
         }
       }
-      await updateAllKeysStatus();
+      // update status di background
+      fetchAllKeysInBackground();
     } else {
       const errMsg = getErrorMessage(data);
       const errCode = getErrorCode(data);
@@ -402,6 +475,7 @@ async function runAction() {
         state.keysLimit[API_KEY] = true;
         state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
         saveState();
+        saveCache(state.keysLimit, state.keysQuota);
         renderKeys();
         toast(`❌ ${keyLabel} ${errCode}`, 'bad');
         addLog(`❌ ${keyLabel} ${errCode}`);
@@ -419,7 +493,7 @@ async function runAction() {
     pushResult(false, email, errMsg);
     if (action === 'send') setProgress(0);
     else setProgress(2);
-    await updateAllKeysStatus();
+    fetchAllKeysInBackground();
   } finally {
     actionBtn.disabled = false;
   }
@@ -469,7 +543,7 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-//  INIT
+//  INIT — CACHE DULU, FETCH DI BACKGROUND
 // ============================================================
 (async function init() {
   loadState();
@@ -477,9 +551,25 @@ themeBtn.addEventListener('click', () => {
   updateStats();
   setMode(state.mode || 'send');
   setProgress(0);
-  await updateAllKeysStatus();
-  const active = getActiveKey();
-  if (active) toast(`🔑 Aktif: ${active.label}`, 'good');
-  else toast('⚠️ Semua API key limit!', 'bad');
-  renderKeys();
+
+  // Pertama, coba muat dari cache
+  const cached = loadCache();
+  if (cached) {
+    state.keysLimit = cached.keysLimit;
+    state.keysQuota = cached.keysQuota;
+    saveState();
+    renderKeys();
+    const active = getActiveKey();
+    if (active) toast(`🔑 Aktif: ${active.label} (cache)`, 'good');
+    else toast('⚠️ Semua API key limit!', 'bad');
+    // Fetch di background
+    fetchAllKeysInBackground();
+  } else {
+    // Tidak ada cache, fetch langsung
+    await updateAllKeysStatus(true);
+    const active = getActiveKey();
+    if (active) toast(`🔑 Aktif: ${active.label}`, 'good');
+    else toast('⚠️ Semua API key limit!', 'bad');
+    renderKeys();
+  }
 })();
