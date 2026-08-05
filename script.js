@@ -1,6 +1,7 @@
 // ============================================================
-//  API KEYS (9 keys)
+//  KONFIGURASI
 // ============================================================
+// V1: API Key
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
   { id: 1, key: 'diy-f7734dbc50a219df', label: 'Backup 1' },
@@ -13,9 +14,9 @@ const API_KEYS = [
   { id: 8, key: 'diy-418186856ce56b8b', label: 'Backup 8' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
-const CACHE_KEY = 'am_keys_cache';
-const CACHE_EXPIRE = 60 * 1000;
-const POLL_INTERVAL = 30000;
+
+// V2: QSR Web API
+const V2_API = 'https://alightmotion.qsr.web.id';
 
 // ============================================================
 //  STATE
@@ -25,7 +26,8 @@ let state = {
   startedAt: null, mode: 'send',
   activeKeyIndex: 0,
   keysLimit: {},
-  keysQuota: {}
+  keysQuota: {},
+  userMode: 'v1' // 'v1' atau 'v2'
 };
 
 // ============================================================
@@ -39,6 +41,7 @@ const copyBtn = document.getElementById('copyBtn');
 const clearBtn = document.getElementById('clearBtn');
 const exportBtn = document.getElementById('exportBtn');
 const themeBtn = document.getElementById('themeBtn');
+const modeSelect = document.getElementById('modeSelect');
 const logEl = document.getElementById('log');
 const historyEl = document.getElementById('history');
 const toastEl = document.getElementById('toast');
@@ -129,6 +132,8 @@ function saveState() {
 // ============================================================
 //  CACHE
 // ============================================================
+const CACHE_KEY = 'am_keys_cache';
+const CACHE_EXPIRE = 60 * 1000;
 function loadCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -180,7 +185,38 @@ function setMode(mode){
 }
 
 // ============================================================
-//  CEK LIMIT & KUOTA (PARALLEL)
+//  MODE SWITCH (V1 / V2)
+// ============================================================
+function setUserMode(mode) {
+  state.userMode = mode;
+  modeSelect.value = mode;
+  if (mode === 'v2') {
+    // Sembunyikan pilihan key
+    keysContainer.style.display = 'none';
+    document.getElementById('email').placeholder = 'Masukkan email custom';
+    document.getElementById('email').readOnly = false;
+    document.getElementById('email').value = '';
+    document.getElementById('link').value = '';
+    setStatus('V2 Aktif', 'Kirim email via QSR Web API (tanpa API key)');
+    toast('🔁 Mode V2 (QSG Web) aktif', 'good');
+  } else {
+    keysContainer.style.display = 'block';
+    document.getElementById('email').placeholder = 'contoh@gmail.com';
+    document.getElementById('email').readOnly = false;
+    document.getElementById('email').value = '';
+    document.getElementById('link').value = '';
+    setStatus('V1 Aktif', 'Gunakan API key diyy');
+    toast('🔁 Mode V1 (API Key) aktif', 'good');
+  }
+  saveState();
+}
+
+modeSelect.addEventListener('change', (e) => {
+  setUserMode(e.target.value);
+});
+
+// ============================================================
+//  V1: CEK LIMIT & KUOTA (PARALLEL)
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -260,7 +296,7 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS
+//  RENDER KEYS (V1 ONLY)
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
@@ -319,136 +355,236 @@ function renderKeys() {
 }
 
 // ============================================================
-//  MAIN ACTION
+//  MAIN ACTION (V1 / V2)
 // ============================================================
 async function runAction() {
+  const mode = state.userMode || 'v1';
   const email = emailEl.value.trim();
   const tag = tagEl.value.trim();
 
-  if (!validateEmail(email)) {
+  // Validasi email
+  if (!email || !validateEmail(email)) {
     setStatus('Error', 'Email tidak valid.');
-    toast('Email tidak valid.', 'bad');
+    toast('Masukkan email yang valid.', 'bad');
     addLog('Email tidak valid.');
     return;
   }
 
-  if (state.mode === 'verify') {
-    const link = linkEl.value.trim();
-    if (!link) {
-      setStatus('Error', 'Link verifikasi wajib diisi.');
-      toast('Masukkan link verifikasi.', 'bad');
-      addLog('Link verifikasi kosong.');
+  // ============================================================
+  //  V1: PAKE API KEY
+  // ============================================================
+  if (mode === 'v1') {
+    if (state.mode === 'verify') {
+      const link = linkEl.value.trim();
+      if (!link) {
+        setStatus('Error', 'Link verifikasi wajib diisi.');
+        toast('Masukkan link verifikasi.', 'bad');
+        addLog('Link verifikasi kosong.');
+        return;
+      }
+    }
+
+    const activeKeyItem = getActiveKey();
+    if (!activeKeyItem) {
+      setStatus('Error', 'Semua API key limit!');
+      toast('❌ Semua API key habis kuota!', 'bad');
+      addLog('Semua key limit');
       return;
     }
-  }
+    const API_KEY = activeKeyItem.key;
+    const keyLabel = activeKeyItem.label;
 
-  const activeKeyItem = getActiveKey();
-  if (!activeKeyItem) {
-    setStatus('Error', 'Semua API key limit!');
-    toast('❌ Semua API key habis kuota!', 'bad');
-    addLog('Semua key limit');
+    actionBtn.disabled = true;
+    const action = state.mode;
+
+    if (action === 'send') {
+      setProgress(0);
+      setStatus('Sending...', `Mengirim email verifikasi (${keyLabel})...`);
+      addLog(`Send started for ${email} [${keyLabel}]${tag ? ' [' + tag + ']' : ''}`);
+    } else {
+      setProgress(2);
+      setStatus('Verifying...', `Memproses verifikasi (${keyLabel})...`);
+      addLog(`Verify started for ${email} [${keyLabel}]${tag ? ' [' + tag + ']' : ''}`);
+    }
+
+    try {
+      const payload = { action, email };
+      if (action === 'verify') payload.link = linkEl.value.trim();
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      addLog(`📦 Response: ${JSON.stringify(data).substring(0, 200)}...`);
+
+      if (!res.ok) {
+        const errMsg = getErrorMessage(data);
+        const errCode = getErrorCode(data);
+        if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
+          state.keysLimit[API_KEY] = true;
+          state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
+          saveState();
+          saveCache(state.keysLimit, state.keysQuota);
+          renderKeys();
+          toast(`❌ ${keyLabel} ${errCode}`, 'bad');
+          addLog(`❌ ${keyLabel} ${errCode}`);
+          const nextKey = getActiveKey();
+          if (nextKey) toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
+          throw new Error(`${keyLabel}: ${errMsg}`);
+        }
+        throw new Error(errMsg);
+      }
+
+      if (data.success) {
+        if (action === 'send') {
+          const hasOrderId = data.data && (data.data.order_id || data.data.next_step);
+          if (!hasOrderId) {
+            const warnMsg = '⚠️ API sukses tapi tidak ada order_id — kemungkinan email tidak terkirim.';
+            setStatus('Warning', warnMsg);
+            toast(warnMsg, 'warn');
+            addLog(`⚠️ ${warnMsg}`);
+            throw new Error(warnMsg);
+          }
+        }
+
+        setStatus('Success', data.message || 'Done');
+        addLog(`✅ ${data.message} (${keyLabel})`);
+
+        if (action === 'send') {
+          toast(`Email terkirim! (${keyLabel})`, 'good');
+          setProgress(1);
+          pushResult(true, email, data.message);
+          linkEl.value = '';
+          setMode('verify');
+          linkEl.focus();
+          setStatus('Waiting for link', 'Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
+        } else {
+          if (data.data && data.data.status === 'activated') {
+            toast(`🎉 Aktivasi berhasil! (${keyLabel})`, 'good');
+            confettiBurst();
+            setProgress(3);
+            pushResult(true, email, data.message);
+            emailEl.value = ''; linkEl.value = ''; emailEl.focus();
+            setMode('send');
+            setStatus('Done', 'Akun premium aktif!');
+          } else {
+            toast(`Verifikasi berhasil. (${keyLabel})`, 'good');
+            setProgress(2);
+            pushResult(true, email, data.message);
+          }
+        }
+        fetchAllKeysInBackground();
+      } else {
+        throw new Error(getErrorMessage(data));
+      }
+    } catch (err) {
+      const errMsg = err.message || 'Unknown error';
+      setStatus('Failed', errMsg);
+      addLog(`❌ ${errMsg} (${keyLabel})`);
+      toast(errMsg, 'bad');
+      pushResult(false, email, errMsg);
+      if (action === 'send') setProgress(0);
+      else setProgress(2);
+      fetchAllKeysInBackground();
+    } finally {
+      actionBtn.disabled = false;
+    }
     return;
   }
-  const API_KEY = activeKeyItem.key;
-  const keyLabel = activeKeyItem.label;
 
-  actionBtn.disabled = true;
-  const action = state.mode;
+  // ============================================================
+  //  V2: PAKE QSR WEB API (tanpa API key)
+  // ============================================================
+  if (mode === 'v2') {
+    const action = state.mode;
 
-  if (action === 'send') {
-    setProgress(0);
-    setStatus('Sending...', `Mengirim email verifikasi (${keyLabel})...`);
-    addLog(`Send started for ${email} [${keyLabel}]${tag ? ' [' + tag + ']' : ''}`);
-  } else {
-    setProgress(2);
-    setStatus('Verifying...', `Memproses verifikasi (${keyLabel})...`);
-    addLog(`Verify started for ${email} [${keyLabel}]${tag ? ' [' + tag + ']' : ''}`);
-  }
+    // V2 Send
+    if (action === 'send') {
+      actionBtn.disabled = true;
+      setProgress(0);
+      setStatus('Sending...', `Mengirim email via QSR API untuk ${email}`);
+      addLog(`V2 Send: ${email}`);
 
-  try {
-    const payload = { action, email };
-    if (action === 'verify') payload.link = linkEl.value.trim();
+      try {
+        const url = `${V2_API}/api/email-prem?email=${encodeURIComponent(email)}`;
+        const res = await fetch(url);
+        const data = await res.json();
 
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
+        addLog(`📦 V2 Send Response: ${JSON.stringify(data)}`);
 
-    addLog(`📦 Response: ${JSON.stringify(data).substring(0, 200)}...`);
-
-    if (!res.ok) {
-      const errMsg = getErrorMessage(data);
-      const errCode = getErrorCode(data);
-      if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
-        state.keysLimit[API_KEY] = true;
-        state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
-        saveState();
-        saveCache(state.keysLimit, state.keysQuota);
-        renderKeys();
-        toast(`❌ ${keyLabel} ${errCode}`, 'bad');
-        addLog(`❌ ${keyLabel} ${errCode}`);
-        const nextKey = getActiveKey();
-        if (nextKey) toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
-        throw new Error(`${keyLabel}: ${errMsg}`);
+        if (data.status === true && data.code === 200) {
+          toast('✅ Email verifikasi terkirim!', 'good');
+          setProgress(1);
+          pushResult(true, email, data.message || 'Email terkirim');
+          setMode('verify');
+          linkEl.focus();
+          setStatus('Waiting for link', 'Cek email, salin link verifikasi, tempelkan di kolom Link.');
+        } else {
+          throw new Error(data.message || 'Gagal kirim email via QSR');
+        }
+      } catch (err) {
+        const errMsg = err.message || 'Unknown error';
+        setStatus('Failed', errMsg);
+        addLog(`❌ V2 Send Error: ${errMsg}`);
+        toast(errMsg, 'bad');
+        pushResult(false, email, errMsg);
+        setProgress(0);
+      } finally {
+        actionBtn.disabled = false;
       }
-      throw new Error(errMsg);
+      return;
     }
 
-    if (data.success) {
-      if (action === 'send') {
-        const hasOrderId = data.data && (data.data.order_id || data.data.next_step);
-        if (!hasOrderId) {
-          const warnMsg = '⚠️ API sukses tapi tidak ada order_id — kemungkinan email tidak terkirim.';
-          setStatus('Warning', warnMsg);
-          toast(warnMsg, 'warn');
-          addLog(`⚠️ ${warnMsg}`);
-          throw new Error(warnMsg);
-        }
+    // V2 Verify
+    if (action === 'verify') {
+      const link = linkEl.value.trim();
+      if (!link || !link.startsWith('http')) {
+        setStatus('Error', 'Link verifikasi tidak valid.');
+        toast('Masukkan link verifikasi yang valid (http...).', 'bad');
+        addLog('Link V2 tidak valid');
+        return;
       }
 
-      setStatus('Success', data.message || 'Done');
-      addLog(`✅ ${data.message} (${keyLabel})`);
+      actionBtn.disabled = true;
+      setProgress(2);
+      setStatus('Verifying...', `Verifikasi ${email} via QSR API`);
+      addLog(`V2 Verify: ${email}`);
 
-      if (action === 'send') {
-        toast(`Email terkirim! (${keyLabel})`, 'good');
-        setProgress(1);
-        pushResult(true, email, data.message);
-        linkEl.value = '';
-        setMode('verify');
-        linkEl.focus();
-        setStatus('Waiting for link', 'Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
-      } else {
-        if (data.data && data.data.status === 'activated') {
-          toast(`🎉 Aktivasi berhasil! (${keyLabel})`, 'good');
+      try {
+        const url = `${V2_API}/api/vertif-prem?email=${encodeURIComponent(email)}&link=${encodeURIComponent(link)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        addLog(`📦 V2 Verify Response: ${JSON.stringify(data)}`);
+
+        if (data.status === true && data.code === 200 && data.success === true) {
+          toast('🎉 Aktivasi premium berhasil!', 'good');
           confettiBurst();
           setProgress(3);
-          pushResult(true, email, data.message);
-          emailEl.value = ''; linkEl.value = ''; emailEl.focus();
+          pushResult(true, email, data.message || 'Premium aktif');
           setMode('send');
           setStatus('Done', 'Akun premium aktif!');
+          emailEl.value = '';
+          linkEl.value = '';
+          emailEl.focus();
         } else {
-          toast(`Verifikasi berhasil. (${keyLabel})`, 'good');
-          setProgress(2);
-          pushResult(true, email, data.message);
+          throw new Error(data.message || 'Verifikasi gagal');
         }
+      } catch (err) {
+        const errMsg = err.message || 'Unknown error';
+        setStatus('Failed', errMsg);
+        addLog(`❌ V2 Verify Error: ${errMsg}`);
+        toast(errMsg, 'bad');
+        pushResult(false, email, errMsg);
+        setProgress(2);
+      } finally {
+        actionBtn.disabled = false;
       }
-      fetchAllKeysInBackground();
-    } else {
-      throw new Error(getErrorMessage(data));
+      return;
     }
-  } catch (err) {
-    const errMsg = err.message || 'Unknown error';
-    setStatus('Failed', errMsg);
-    addLog(`❌ ${errMsg} (${keyLabel})`);
-    toast(errMsg, 'bad');
-    pushResult(false, email, errMsg);
-    if (action === 'send') setProgress(0);
-    else setProgress(2);
-    fetchAllKeysInBackground();
-  } finally {
-    actionBtn.disabled = false;
   }
 }
 
@@ -500,12 +636,12 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ============================================================
-//  POLLING
+//  POLLING (V1)
 // ============================================================
 let pollTimer = null;
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(fetchAllKeysInBackground, POLL_INTERVAL);
+  pollTimer = setInterval(fetchAllKeysInBackground, 30000);
 }
 
 // ============================================================
@@ -518,17 +654,23 @@ function startPolling() {
   setMode(state.mode || 'send');
   setProgress(0);
 
+  // Set mode dari state
+  const savedMode = state.userMode || 'v1';
+  modeSelect.value = savedMode;
+  setUserMode(savedMode);
+
+  // V1: load cache & fetch keys
   const cached = loadCache();
   if (cached) {
     state.keysLimit = cached.keysLimit;
     state.keysQuota = cached.keysQuota;
     saveState();
   }
-
   renderKeys();
 
   const active = getActiveKey();
-  if (active) toast(`🔑 Aktif: ${active.label}`, 'good');
+  if (active && savedMode === 'v1') toast(`🔑 Aktif: ${active.label}`, 'good');
+  else if (savedMode === 'v2') toast('🔁 V2 (QSG Web) aktif', 'good');
   else toast('⚠️ Semua API key limit!', 'bad');
 
   await fetchAllKeysInBackground();
