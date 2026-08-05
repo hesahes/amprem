@@ -90,6 +90,20 @@
     display:flex;
     gap:10px;
     flex-wrap:wrap;
+    align-items:center;
+  }
+  .actions select{
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:12px;
+    padding:8px 12px;
+    color:#e5e7eb;
+    font-size:13px;
+    outline:none;
+    cursor:pointer;
+  }
+  .actions select:focus{
+    border-color:rgba(96,165,250,.55);
   }
   button{
     border:none;
@@ -222,7 +236,6 @@
     transition:width .3s ease;
     position:relative;
   }
-  /* ANIMASI GLOW PADA PROGRESS BAR */
   .bar > div::after{
     content:'';
     position:absolute;
@@ -365,6 +378,10 @@
       </div>
     </div>
     <div class="actions">
+      <select id="modeSelect">
+        <option value="v1">V1 (API Key)</option>
+        <option value="v2">V2 (QSG Web)</option>
+      </select>
       <button class="btn-ghost" id="themeBtn">Toggle Theme</button>
       <button class="btn-ghost" id="exportBtn">Export JSON</button>
     </div>
