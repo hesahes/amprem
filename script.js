@@ -19,8 +19,8 @@ let state = {
   total: 0, success: 0, failed: 0, today: 0, history: [],
   startedAt: null, mode: 'send',
   activeKeyIndex: 0,
-  keysLimit: {},    // key: true/false
-  keysQuota: {}     // key: { daily_remaining, hourly_remaining }
+  keysLimit: {},
+  keysQuota: {}
 };
 
 // ============================================================
@@ -44,11 +44,18 @@ const barFill = document.getElementById('barFill');
 const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
-// container keys
+// ============================================================
+//  BUAT CONTAINER KEYS DI ATAS FORM (sebelum input email)
+// ============================================================
 const keysContainer = document.createElement('div');
 keysContainer.id = 'keysContainer';
-keysContainer.style.cssText = 'margin-top:16px; border-top:1px solid rgba(255,255,255,.06); padding-top:12px;';
-document.querySelector('.card').appendChild(keysContainer);
+keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border-radius:16px; border:1px solid rgba(255,255,255,.06);';
+// Sisipkan setelah elemen .sub dan sebelum .stats? Lebih tepat sebelum .field email
+// Kita sisipkan sebelum .field pertama (email)
+const firstField = document.querySelector('.field');
+if (firstField) {
+  firstField.parentNode.insertBefore(keysContainer, firstField);
+}
 
 // ============================================================
 //  UTILITY
@@ -148,14 +155,13 @@ function setMode(mode){
 }
 
 // ============================================================
-//  CEK LIMIT & KUOTA VIA INFO
+//  CEK LIMIT & KUOTA
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
     const url = `${API_URL}?action=info&key=${apiKey}`;
     const res = await fetch(url);
     if (!res.ok) {
-      // Jika status 429, kita anggap limit
       if (res.status === 429) {
         return { daily_remaining: 0, hourly_remaining: 0, error: 'LIMIT' };
       }
@@ -168,7 +174,6 @@ async function fetchKeyStatus(apiKey) {
       const hourly = q.hourly_remaining ?? 0;
       return { daily_remaining: daily, hourly_remaining: hourly };
     }
-    // Jika response sukses false, cek error code
     if (!data.success && data.error && data.error.code) {
       const code = data.error.code;
       if (code === 'DAILY_LIMIT_REACHED' || code === 'HOURLY_LIMIT_REACHED' || code === 'INVALID_API_KEY') {
@@ -192,12 +197,9 @@ async function updateAllKeysStatus() {
       state.keysLimit[item.key] = limit;
       state.keysQuota[item.key] = { daily_remaining: status.daily_remaining, hourly_remaining: status.hourly_remaining };
     } else {
-      // info gagal → tidak ubah status limit (biarkan seperti sebelumnya)
-      // jika belum ada status, set false (available)
       if (state.keysLimit[item.key] === undefined) {
         state.keysLimit[item.key] = false;
       }
-      // kuota tidak diketahui
       state.keysQuota[item.key] = null;
     }
     await new Promise(r => setTimeout(r, 300));
@@ -230,11 +232,12 @@ function getActiveKey() {
 }
 
 // ============================================================
-//  RENDER KEYS
+//  RENDER KEYS (di atas form)
 // ============================================================
 function renderKeys() {
   if (!keysContainer) return;
-  let html = `<div style="display:flex; flex-wrap:wrap; gap:8px; font-size:12px;">`;
+  let html = `<div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">`;
+  html += `<span style="font-size:11px; color:#94a3b8; margin-right:4px;">🔑 Pilih Key:</span>`;
   for (const item of API_KEYS) {
     const available = isKeyAvailable(item.key);
     const isActive = (state.activeKeyIndex === item.id);
@@ -260,10 +263,10 @@ function renderKeys() {
     }
 
     html += `
-      <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:4px 10px; color:${color};">
+      <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:3px 8px; color:${color}; font-size:11px;">
         <span style="font-weight:600;">${item.label}</span>
         <span style="opacity:0.7;">${daily}/${hourly}</span>
-        <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:11px; padding:2px 6px; border-radius:10px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
+        <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:10px; padding:2px 6px; border-radius:8px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
       </div>
     `;
   }
@@ -334,13 +337,11 @@ async function runAction() {
     });
     const data = await res.json();
 
-    // Log response ringkas
     addLog(`📦 Response: ${JSON.stringify(data).substring(0, 200)}...`);
 
     if (!res.ok) {
       const errMsg = getErrorMessage(data);
       const errCode = getErrorCode(data);
-      // Jika error code adalah limit atau invalid key
       if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
         state.keysLimit[API_KEY] = true;
         state.keysQuota[API_KEY] = { daily_remaining: 0, hourly_remaining: 0 };
@@ -356,11 +357,9 @@ async function runAction() {
     }
 
     if (data.success) {
-      // CEK APAKAH SEND BENAR-BENAR BERHASIL (ada order_id/next_step)
       if (action === 'send') {
         const hasOrderId = data.data && (data.data.order_id || data.data.next_step);
         if (!hasOrderId) {
-          // Gagal kirim (mungkin SEND_FAILED) — tidak dianggap limit
           const warnMsg = '⚠️ API sukses tapi tidak ada order_id — kemungkinan email tidak terkirim.';
           setStatus('Warning', warnMsg);
           toast(warnMsg, 'warn');
@@ -395,10 +394,8 @@ async function runAction() {
           pushResult(true, email, data.message);
         }
       }
-      // update status key setelah aktivasi
       await updateAllKeysStatus();
     } else {
-      // success: false
       const errMsg = getErrorMessage(data);
       const errCode = getErrorCode(data);
       if (errCode === 'DAILY_LIMIT_REACHED' || errCode === 'HOURLY_LIMIT_REACHED' || errCode === 'INVALID_API_KEY') {
@@ -422,7 +419,6 @@ async function runAction() {
     pushResult(false, email, errMsg);
     if (action === 'send') setProgress(0);
     else setProgress(2);
-    // update status setelah error (misal limit)
     await updateAllKeysStatus();
   } finally {
     actionBtn.disabled = false;
