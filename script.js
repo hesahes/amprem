@@ -4,6 +4,8 @@
 // V1: API Key
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
+const API_KEYS = [
+  { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
   { id: 1, key: 'diy-f7734dbc50a219df', label: 'Backup 1' },
   { id: 2, key: 'diy-6fc85638bd1dd335', label: 'Backup 2' },
   { id: 3, key: 'diy-e14db7dad56de197', label: 'Backup 3' },
@@ -11,7 +13,9 @@ const API_KEYS = [
   { id: 5, key: 'diy-e1fdaeed1f67c0a3', label: 'Backup 5' },
   { id: 6, key: 'diy-12b138ffa913437c', label: 'Backup 6' },
   { id: 7, key: 'diy-6b5152cc66af369d', label: 'Backup 7' },
-  { id: 8, key: 'diy-418186856ce56b8b', label: 'Backup 8' }
+  { id: 8, key: 'diy-418186856ce56b8b', label: 'Backup 8' },
+  { id: 9, key: 'diy-163791d6c57443d1', label: 'Backup 9' },
+  { id: 10, key: 'diy-1dd1c108bbf80b8f', label: 'Backup 10' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 
