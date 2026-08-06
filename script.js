@@ -4,8 +4,6 @@
 // V1: API Key
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
-const API_KEYS = [
-  { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
   { id: 1, key: 'diy-f7734dbc50a219df', label: 'Backup 1' },
   { id: 2, key: 'diy-6fc85638bd1dd335', label: 'Backup 2' },
   { id: 3, key: 'diy-e14db7dad56de197', label: 'Backup 3' },
