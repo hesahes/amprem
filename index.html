@@ -55,6 +55,9 @@
     background-size: 30px 30px;
     position: relative;
     overflow-x: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* ============================================================
@@ -86,13 +89,129 @@
   }
 
   /* ============================================================
-     MAIN APP
+     LOGIN SCREEN
      ============================================================ */
-  .app {
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  #loginScreen .soul-icon {
+    font-size: 64px;
+    color: var(--soul);
+    animation: pulseSoul 2s ease-in-out infinite;
+    margin-bottom: 20px;
+    text-shadow: 0 0 40px rgba(255,105,180,0.2);
+  }
+
+  @keyframes pulseSoul {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  #loginScreen h1 {
+    font-size: 24px;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+  }
+  #loginScreen h1 .ut { color: var(--accent); }
+  #loginScreen h1 .nder { color: var(--accent2); }
+
+  #loginScreen .subtitle {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 30px;
+    opacity: 0.6;
+  }
+
+  #loginScreen .field {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  #loginScreen label {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  #loginScreen input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s ease;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+
+  #loginScreen input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(68,136,255,0.05);
+  }
+
+  #loginScreen .login-btn {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid var(--accent);
+    background: rgba(68,136,255,0.05);
+    color: var(--accent);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  #loginScreen .login-btn:hover {
+    background: rgba(68,136,255,0.12);
+    box-shadow: 0 0 40px rgba(68,136,255,0.08);
+    transform: translateY(-2px);
+  }
+
+  #loginScreen .login-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #loginError {
+    color: var(--bad);
+    font-size: 9px;
+    margin-top: 12px;
+    min-height: 20px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* ============================================================
+     DASHBOARD — HIDDEN UNTIL LOGIN
+     ============================================================ */
+  #dashboard {
+    display: none;
     max-width: 780px;
     margin: 0 auto;
     position: relative;
     z-index: 1;
+    width: 100%;
     animation: fadeIn 0.6s ease both;
   }
 
@@ -102,7 +221,7 @@
   }
 
   /* ============================================================
-     TOP BAR — UNDERTALE STYLE
+     TOP BAR
      ============================================================ */
   .topbar {
     display: flex;
@@ -113,7 +232,6 @@
     padding: 12px 16px;
     background: var(--card);
     border: 2px solid var(--line);
-    border-radius: 0;
     flex-wrap: wrap;
     position: relative;
     box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
@@ -143,49 +261,28 @@
     color: var(--soul);
     border: 2px solid var(--soul);
     background: rgba(255,105,180,0.08);
-    position: relative;
     animation: pulseSoul 2s ease-in-out infinite;
-  }
-
-  @keyframes pulseSoul {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,105,180,0.15); }
-  }
-
-  .logo span {
-    animation: soulFloat 3s ease-in-out infinite;
-  }
-
-  @keyframes soulFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-2px); }
   }
 
   .brand h1 {
     font-size: 16px;
     letter-spacing: 2px;
-    text-shadow: 0 0 20px rgba(68,136,255,0.2);
   }
-
-  .brand h1 .ut {
-    color: var(--accent);
-  }
-  .brand h1 .nder {
-    color: var(--accent2);
-  }
-
+  .brand h1 .ut { color: var(--accent); }
+  .brand h1 .nder { color: var(--accent2); }
   .brand p {
     color: var(--muted);
     font-size: 8px;
     margin-top: 4px;
-    letter-spacing: 1px;
     opacity: 0.6;
+    letter-spacing: 1px;
   }
 
   .actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
   }
 
   .actions select {
@@ -197,16 +294,13 @@
     font-size: 8px;
     outline: none;
     cursor: pointer;
-    letter-spacing: 0.5px;
     background: var(--bg);
   }
 
-  .actions select:focus {
-    border-color: var(--accent);
-  }
+  .actions select:focus { border-color: var(--accent); }
 
   /* ============================================================
-     BUTTONS — UNDERTALE BATTLE STYLE
+     BUTTONS
      ============================================================ */
   button {
     border: 2px solid var(--line);
@@ -218,85 +312,37 @@
     background: transparent;
     color: var(--text);
     letter-spacing: 1px;
-    position: relative;
     text-transform: uppercase;
-    image-rendering: pixelated;
   }
 
-  button:hover {
-    transform: translateY(-2px);
-    border-color: var(--accent);
-    box-shadow: 0 4px 20px rgba(68,136,255,0.15);
-  }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: translateY(0) scale(0.97); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-  button:active {
-    transform: translateY(0) scale(0.97);
-  }
+  .btn-primary { border-color: var(--accent); color: var(--accent); background: rgba(68,136,255,0.05); }
+  .btn-primary:hover { background: rgba(68,136,255,0.12); box-shadow: 0 0 30px rgba(68,136,255,0.08); }
 
-  button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-    filter: grayscale(0.5);
-  }
+  .btn-action { border-color: var(--accent2); color: var(--accent2); background: rgba(255,215,0,0.05); }
+  .btn-action:hover { background: rgba(255,215,0,0.12); box-shadow: 0 0 30px rgba(255,215,0,0.08); }
 
-  .btn-primary {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(68,136,255,0.05);
-  }
+  .btn-danger { border-color: var(--bad); color: var(--bad); background: rgba(255,68,68,0.05); }
+  .btn-danger:hover { background: rgba(255,68,68,0.12); box-shadow: 0 0 30px rgba(255,68,68,0.08); }
 
-  .btn-primary:hover {
-    background: rgba(68,136,255,0.12);
-    box-shadow: 0 0 30px rgba(68,136,255,0.08);
-  }
+  .btn-ghost { border-color: var(--muted); color: var(--muted); background: transparent; }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
 
-  .btn-primary:disabled {
+  .btn-sm { font-size: 7px; padding: 4px 10px; }
+
+  .btn-logout {
     border-color: var(--muted);
     color: var(--muted);
-    background: transparent;
-  }
-
-  .btn-action {
-    border-color: var(--accent2);
-    color: var(--accent2);
-    background: rgba(255,215,0,0.05);
-  }
-
-  .btn-action:hover {
-    background: rgba(255,215,0,0.12);
-    box-shadow: 0 0 30px rgba(255,215,0,0.08);
-  }
-
-  .btn-danger {
-    border-color: var(--bad);
-    color: var(--bad);
-    background: rgba(255,68,68,0.05);
-  }
-
-  .btn-danger:hover {
-    background: rgba(255,68,68,0.12);
-    box-shadow: 0 0 30px rgba(255,68,68,0.08);
-  }
-
-  .btn-ghost {
-    border-color: var(--muted);
-    color: var(--muted);
-    background: transparent;
-  }
-
-  .btn-ghost:hover {
-    border-color: var(--text);
-    color: var(--text);
-  }
-
-  .btn-sm {
     font-size: 7px;
     padding: 4px 10px;
   }
+  .btn-logout:hover { border-color: var(--bad); color: var(--bad); }
 
   /* ============================================================
-     CARDS — UNDERTALE BOX STYLE
+     CARDS
      ============================================================ */
   .card {
     background: var(--card);
@@ -334,7 +380,7 @@
   }
 
   /* ============================================================
-     STATS — HP / EXP STYLE
+     STATS
      ============================================================ */
   .stats {
     display: grid;
@@ -348,7 +394,6 @@
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.02);
     text-align: center;
-    position: relative;
   }
 
   .stat .label {
@@ -371,12 +416,9 @@
   .stat.gold .value { color: var(--accent2); }
 
   /* ============================================================
-     FIELDS — UNDERTALE INPUT
+     FIELDS
      ============================================================ */
-  .field {
-    margin-bottom: 12px;
-  }
-
+  .field { margin-bottom: 12px; }
   label {
     font-size: 8px;
     color: var(--muted);
@@ -409,24 +451,12 @@
     font-size: 8px;
   }
 
-  input[readonly] {
-    cursor: default;
-    opacity: 0.7;
-  }
-
-  .row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   /* ============================================================
-     PROGRESS — UNDERTALE BATTLE BAR
+     PROGRESS
      ============================================================ */
-  .progress {
-    margin: 14px 0 18px;
-  }
-
+  .progress { margin: 14px 0 18px; }
   .steps {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -446,18 +476,8 @@
     background: rgba(255,255,255,0.02);
   }
 
-  .step.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(68,136,255,0.06);
-    box-shadow: inset 0 0 20px rgba(68,136,255,0.03);
-  }
-
-  .step.done {
-    border-color: var(--good);
-    color: var(--good);
-    background: rgba(124,252,0,0.06);
-  }
+  .step.active { border-color: var(--accent); color: var(--accent); background: rgba(68,136,255,0.06); }
+  .step.done { border-color: var(--good); color: var(--good); background: rgba(124,252,0,0.06); }
 
   .bar {
     width: 100%;
@@ -489,46 +509,22 @@
     100% { transform: translateX(100%); }
   }
 
-  /* ============================================================
-     CONTROLS
-     ============================================================ */
   .controls {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 12px;
   }
+  .controls button { flex: 1; min-width: 60px; font-size: 8px; }
 
-  .controls button {
-    flex: 1;
-    min-width: 60px;
-    text-align: center;
-    font-size: 8px;
-  }
-
-  /* ============================================================
-     STATUS
-     ============================================================ */
   .status {
     margin-top: 14px;
     padding: 12px 16px;
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.02);
   }
-
-  .status strong {
-    display: block;
-    font-size: 10px;
-    margin-bottom: 4px;
-    letter-spacing: 1px;
-  }
-
-  .status p {
-    color: var(--muted);
-    font-size: 8px;
-    line-height: 1.6;
-    letter-spacing: 0.3px;
-  }
+  .status strong { display: block; font-size: 10px; margin-bottom: 4px; letter-spacing: 1px; }
+  .status p { color: var(--muted); font-size: 8px; line-height: 1.6; letter-spacing: 0.3px; }
 
   /* ============================================================
      LOG & HISTORY
@@ -543,15 +539,9 @@
     padding-right: 4px;
   }
 
-  .log::-webkit-scrollbar {
-    width: 4px;
-  }
-  .log::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.02);
-  }
-  .log::-webkit-scrollbar-thumb {
-    background: var(--line);
-  }
+  .log::-webkit-scrollbar { width: 4px; }
+  .log::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+  .log::-webkit-scrollbar-thumb { background: var(--line); }
 
   .log-item {
     border: 1px solid var(--line);
@@ -575,9 +565,7 @@
     font-size: 6px;
     margin-bottom: 4px;
     opacity: 0.6;
-    letter-spacing: 0.5px;
   }
-
   .log-item .good { color: var(--good); }
   .log-item .bad { color: var(--bad); }
   .log-item .warn { color: var(--warn); }
@@ -600,14 +588,9 @@
     background: rgba(255,255,255,0.02);
   }
 
-  .history-item strong {
-    font-size: 9px;
-    color: var(--text);
-  }
-
+  .history-item strong { font-size: 9px; color: var(--text); }
   .history-item .result-success { color: var(--good); }
   .history-item .result-failed { color: var(--bad); }
-
   .history-item span {
     color: var(--muted);
     display: block;
@@ -617,7 +600,7 @@
   }
 
   /* ============================================================
-     TOAST — UNDERTALE TEXT BOX
+     TOAST
      ============================================================ */
   .toast {
     position: fixed;
@@ -640,17 +623,13 @@
     box-shadow: 0 8px 40px rgba(0,0,0,0.8);
   }
 
-  .toast.show {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
   .toast.good { border-color: var(--good); }
   .toast.bad { border-color: var(--bad); }
   .toast.warn { border-color: var(--warn); }
 
   /* ============================================================
-     CONFETTI — UNDERTALE DUST EFFECT
+     CONFETTI
      ============================================================ */
   .confetti {
     position: fixed;
@@ -672,10 +651,65 @@
   }
 
   @keyframes fall {
-    to {
-      transform: translateY(110vh) rotate(720deg);
-      opacity: 0;
-    }
+    to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ============================================================
+     ADMIN PANEL
+     ============================================================ */
+  #adminPanel {
+    margin-top: 16px;
+    border-top: 2px solid var(--accent2);
+    padding-top: 16px;
+    display: none;
+  }
+
+  #adminPanel h3 {
+    font-size: 12px;
+    color: var(--accent2);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  #adminPanel .key-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  #adminPanel .key-tag {
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    font-size: 7px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+    letter-spacing: 0.5px;
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  #adminPanel .key-tag .del {
+    color: var(--bad);
+    cursor: pointer;
+    margin-left: 6px;
+    font-size: 8px;
+  }
+
+  #adminPanel .key-tag .del:hover { opacity: 0.7; }
+
+  #adminPanel .gen-area {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  #adminPanel .gen-area input {
+    flex: 1;
+    min-width: 120px;
+    font-size: 8px;
+    padding: 6px 10px;
   }
 
   /* ============================================================
@@ -692,6 +726,8 @@
     .brand h1 { font-size: 12px; }
     .topbar { padding: 10px 12px; }
     .stat .value { font-size: 14px; }
+    #loginScreen h1 { font-size: 18px; }
+    #loginScreen .soul-icon { font-size: 48px; }
   }
 
   @media (max-width: 400px) {
@@ -699,6 +735,7 @@
     .stat { padding: 8px; }
     .steps .step { font-size: 6px; padding: 4px 2px; }
     .card h2 { font-size: 11px; }
+    #loginScreen .login-btn { font-size: 11px; padding: 12px; }
   }
 </style>
 </head>
@@ -710,9 +747,24 @@
 <div class="bg-souls" id="bgSouls"></div>
 
 <!-- ============================================================
-     MAIN APP
+     LOGIN SCREEN
      ============================================================ -->
-<div class="app">
+<div id="loginScreen">
+  <div class="soul-icon">❤</div>
+  <h1><span class="ut">AM</span><span class="nder"> Premium</span></h1>
+  <div class="subtitle">⚔️ ENTER YOUR SOUL KEY</div>
+  <div class="field">
+    <label for="loginKey">🔑 Soul Key</label>
+    <input type="text" id="loginKey" placeholder="Enter key..." autocomplete="off" />
+  </div>
+  <button class="login-btn" id="loginBtn">❤ ENTER</button>
+  <div id="loginError"></div>
+</div>
+
+<!-- ============================================================
+     DASHBOARD
+     ============================================================ -->
+<div id="dashboard">
 
   <!-- TOP BAR -->
   <div class="topbar">
@@ -731,6 +783,7 @@
       </select>
       <button class="btn-ghost btn-sm" id="themeBtn">🎨 Theme</button>
       <button class="btn-ghost btn-sm" id="exportBtn">📦 Export</button>
+      <button class="btn-logout" id="logoutBtn">🚪 LOGOUT</button>
     </div>
   </div>
 
@@ -800,6 +853,16 @@
       <strong id="statusTitle">❤ READY</strong>
       <p id="statusText">Enter your email and press SEND.</p>
     </div>
+
+    <!-- ADMIN PANEL (only visible to owner) -->
+    <div id="adminPanel">
+      <h3>👑 ADMIN — KEY GENERATOR</h3>
+      <div class="gen-area">
+        <input type="text" id="newKeyInput" placeholder="Custom key or empty for random" />
+        <button class="btn-primary btn-sm" id="genKeyBtn">⚡ GENERATE</button>
+      </div>
+      <div class="key-list" id="keyList"></div>
+    </div>
   </div>
 
   <!-- LOG & HISTORY -->
@@ -824,7 +887,7 @@
 
 <script>
   // ============================================================
-  //  FALLING SOULS BACKGROUND
+  //  FALLING SOULS BACKGROUND (pure UI)
   // ============================================================
   (function createSouls() {
     const container = document.getElementById('bgSouls');
