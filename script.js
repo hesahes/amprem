@@ -10,6 +10,7 @@ let currentUser = null;
 let registeredKeys = [];
 let cooldownMinutes = 0;
 let lastActionTime = 0;
+let keysContainer = null;
 
 // ============================================================
 //  DOM REFS
@@ -73,6 +74,8 @@ function doLogout() {
   loginKeyInput.value = '';
   loginError.textContent = '';
   loginKeyInput.focus();
+  // Hapus container key jika ada
+  if (keysContainer) { keysContainer.style.display = 'none'; }
 }
 
 function showDashboard() {
@@ -197,11 +200,19 @@ const barFill = document.getElementById('barFill');
 const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
-const keysContainer = document.createElement('div');
-keysContainer.id = 'keysContainer';
-keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border:1px solid var(--line);';
-const firstField = document.querySelector('.field');
-if (firstField) firstField.parentNode.insertBefore(keysContainer, firstField);
+// ============================================================
+//  BUILD KEYS CONTAINER (HANYA DI DASHBOARD)
+// ============================================================
+function buildKeysContainer() {
+  if (keysContainer) return keysContainer;
+  keysContainer = document.createElement('div');
+  keysContainer.id = 'keysContainer';
+  keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border:1px solid var(--line);';
+  // Sisipkan sebelum field email (firstField)
+  const firstField = document.querySelector('.field');
+  if (firstField) firstField.parentNode.insertBefore(keysContainer, firstField);
+  return keysContainer;
+}
 
 // ============================================================
 //  UTILITY
@@ -335,13 +346,13 @@ function setUserMode(mode) {
   state.userMode = mode;
   modeSelect.value = mode;
   if (mode === 'v1') {
-    keysContainer.style.display = 'block';
+    if (keysContainer) keysContainer.style.display = 'block';
     document.getElementById('email').placeholder = 'your@email.com';
     document.getElementById('email').readOnly = false;
     setStatus('V1 Aktif', 'Gunakan API key diyy');
     toast('🔁 Mode V1 (API Key) aktif', 'good');
   } else {
-    keysContainer.style.display = 'none';
+    if (keysContainer) keysContainer.style.display = 'none';
     document.getElementById('email').placeholder = mode === 'v2' ? 'Email untuk V2' : 'Email untuk V3';
     document.getElementById('email').readOnly = false;
     setStatus(mode === 'v2' ? 'V2 Aktif' : 'V3 Aktif', mode === 'v2' ? 'Kirim email via QSR Web API' : 'Kirim email via Scrape API');
@@ -414,6 +425,7 @@ function getActiveKey() {
 }
 
 function renderKeys() {
+  buildKeysContainer();
   if (!keysContainer) return;
   let html = `<div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"><span style="font-size:8px;color:var(--muted);margin-right:4px;">🔑 Pilih Key:</span>`;
   for (const item of API_KEYS) {
@@ -803,7 +815,8 @@ function initDashboard() {
   updateStats();
   setMode(state.mode || 'send');
   setProgress(0);
-  // Mode sudah diset ke V1 di showDashboard, tapi kita pastikan
+  // Buat container keys (hanya di dashboard)
+  buildKeysContainer();
   const cached = loadCache();
   if (cached) {
     state.keysLimit = cached.keysLimit;
@@ -811,10 +824,8 @@ function initDashboard() {
     saveState();
   }
   renderKeys();
-  // Refresh keys di background
   fetchAllKeysInBackground();
   startPolling();
-  // Load cooldown
   loadCooldown();
 }
 
@@ -834,4 +845,4 @@ if (!checkAuth()) {
   loginScreen.style.display = 'flex';
   dashboard.style.display = 'none';
   loginKeyInput.focus();
-}
+      }
