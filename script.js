@@ -20,6 +20,9 @@ const API_URL = 'https://diyymotion.vercel.app/api/am-api';
 // V2: QSR Web API
 const V2_API = 'https://alightmotion.qsr.web.id';
 
+// V3: Scrape API (generator-amprem.zone.id)
+const V3_API = 'https://generator-amprem.zone.id';
+
 // ============================================================
 //  STATE
 // ============================================================
@@ -29,7 +32,7 @@ let state = {
   activeKeyIndex: 0,
   keysLimit: {},
   keysQuota: {},
-  userMode: 'v1' // 'v1' atau 'v2'
+  userMode: 'v1' // 'v1', 'v2', 'v3'
 };
 
 // ============================================================
@@ -55,7 +58,7 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
-//  KEYS CONTAINER
+//  KEYS CONTAINER (hanya untuk V1)
 // ============================================================
 const keysContainer = document.createElement('div');
 keysContainer.id = 'keysContainer';
@@ -187,21 +190,12 @@ function setMode(mode){
 }
 
 // ============================================================
-//  MODE SWITCH (V1 / V2)
+//  MODE SWITCH (V1 / V2 / V3)
 // ============================================================
 function setUserMode(mode) {
   state.userMode = mode;
   modeSelect.value = mode;
-  if (mode === 'v2') {
-    // Sembunyikan pilihan key
-    keysContainer.style.display = 'none';
-    document.getElementById('email').placeholder = 'Masukkan email custom';
-    document.getElementById('email').readOnly = false;
-    document.getElementById('email').value = '';
-    document.getElementById('link').value = '';
-    setStatus('V2 Aktif', 'Kirim email via QSR Web API (tanpa API key)');
-    toast('🔁 Mode V2 (QSG Web) aktif', 'good');
-  } else {
+  if (mode === 'v1') {
     keysContainer.style.display = 'block';
     document.getElementById('email').placeholder = 'contoh@gmail.com';
     document.getElementById('email').readOnly = false;
@@ -209,6 +203,14 @@ function setUserMode(mode) {
     document.getElementById('link').value = '';
     setStatus('V1 Aktif', 'Gunakan API key diyy');
     toast('🔁 Mode V1 (API Key) aktif', 'good');
+  } else {
+    keysContainer.style.display = 'none';
+    document.getElementById('email').placeholder = mode === 'v2' ? 'Masukkan email custom' : 'Email untuk V3';
+    document.getElementById('email').readOnly = false;
+    document.getElementById('email').value = '';
+    document.getElementById('link').value = '';
+    setStatus(mode === 'v2' ? 'V2 Aktif' : 'V3 Aktif', mode === 'v2' ? 'Kirim email via QSR Web API' : 'Kirim email via Scrape API');
+    toast(`🔁 Mode ${mode.toUpperCase()} (${mode === 'v2' ? 'QSG Web' : 'Scrape API'}) aktif`, 'good');
   }
   saveState();
 }
@@ -357,7 +359,7 @@ function renderKeys() {
 }
 
 // ============================================================
-//  MAIN ACTION (V1 / V2)
+//  MAIN ACTION (V1 / V2 / V3)
 // ============================================================
 async function runAction() {
   const mode = state.userMode || 'v1';
@@ -588,6 +590,98 @@ async function runAction() {
       return;
     }
   }
+
+  // ============================================================
+  //  V3: PAKE SCRAPE API (generator-amprem.zone.id)
+  // ============================================================
+  if (mode === 'v3') {
+    const action = state.mode;
+
+    // V3 Send
+    if (action === 'send') {
+      actionBtn.disabled = true;
+      setProgress(0);
+      setStatus('Sending...', `Mengirim email via V3 untuk ${email}`);
+      addLog(`V3 Send: ${email}`);
+
+      try {
+        const url = `${V3_API}/api/amsend?email=${encodeURIComponent(email)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        addLog(`📦 V3 Send Response: ${JSON.stringify(data)}`);
+
+        if (data.status === true || data.success === true) {
+          toast('✅ Email verifikasi terkirim!', 'good');
+          setProgress(1);
+          pushResult(true, email, data.message || 'Email terkirim');
+          setMode('verify');
+          linkEl.focus();
+          setStatus('Waiting for link', 'Cek email, salin link verifikasi, tempelkan di kolom Link.');
+        } else {
+          throw new Error(data.message || data.error || 'Gagal kirim email via V3');
+        }
+      } catch (err) {
+        const errMsg = err.message || 'Unknown error';
+        setStatus('Failed', errMsg);
+        addLog(`❌ V3 Send Error: ${errMsg}`);
+        toast(errMsg, 'bad');
+        pushResult(false, email, errMsg);
+        setProgress(0);
+      } finally {
+        actionBtn.disabled = false;
+      }
+      return;
+    }
+
+    // V3 Verify
+    if (action === 'verify') {
+      const link = linkEl.value.trim();
+      if (!link || !link.startsWith('http')) {
+        setStatus('Error', 'Link verifikasi tidak valid.');
+        toast('Masukkan link verifikasi yang valid (http...).', 'bad');
+        addLog('Link V3 tidak valid');
+        return;
+      }
+
+      actionBtn.disabled = true;
+      setProgress(2);
+      setStatus('Verifying...', `Verifikasi ${email} via V3`);
+      addLog(`V3 Verify: ${email}`);
+
+      try {
+        const url = `${V3_API}/api/amverif?email=${encodeURIComponent(email)}&link=${encodeURIComponent(link)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        addLog(`📦 V3 Verify Response: ${JSON.stringify(data)}`);
+
+        if (data.status === true || data.success === true) {
+          toast('🎉 Aktivasi premium berhasil!', 'good');
+          confettiBurst();
+          setProgress(3);
+          pushResult(true, email, data.message || 'Premium aktif');
+          setMode('send');
+          setStatus('Done', 'Akun premium aktif!');
+          emailEl.value = '';
+          linkEl.value = '';
+          emailEl.focus();
+        } else {
+          throw new Error(data.message || data.error || 'Verifikasi gagal');
+        }
+      } catch (err) {
+        const errMsg = err.message || 'Unknown error';
+        setStatus('Failed', errMsg);
+        addLog(`❌ V3 Verify Error: ${errMsg}`);
+        toast(errMsg, 'bad');
+        pushResult(false, email, errMsg);
+        setProgress(2);
+      } finally {
+        actionBtn.disabled = false;
+      }
+      return;
+    }
+  }
 }
 
 // ============================================================
@@ -673,6 +767,7 @@ function startPolling() {
   const active = getActiveKey();
   if (active && savedMode === 'v1') toast(`🔑 Aktif: ${active.label}`, 'good');
   else if (savedMode === 'v2') toast('🔁 V2 (QSG Web) aktif', 'good');
+  else if (savedMode === 'v3') toast('🔁 V3 (Scrape API) aktif', 'good');
   else toast('⚠️ Semua API key limit!', 'bad');
 
   await fetchAllKeysInBackground();
