@@ -4,13 +4,11 @@
 const OWNER_KEY = 'MAHES-2928';
 const STORAGE_KEY = 'am_soul_key';
 const KEYS_STORAGE = 'am_registered_keys';
-const COOLDOWN_STORAGE = 'am_cooldown';
 
 let currentUser = null;
-let registeredKeys = [];
-let cooldownMinutes = 0;
-let lastActionTime = 0;
+let registeredKeys = []; // [{ key, cooldown, lastAction }]
 let keysContainer = null;
+let cooldownTimer = null;
 
 // ============================================================
 //  DOM REFS
@@ -29,17 +27,53 @@ const cooldownInput = document.getElementById('cooldownInput');
 const cooldownBtn = document.getElementById('cooldownBtn');
 
 // ============================================================
-//  LOAD / SAVE KEYS & COOLDOWN
+//  LOAD / SAVE KEYS
 // ============================================================
 function loadRegisteredKeys() {
-  try { const d = localStorage.getItem(KEYS_STORAGE); registeredKeys = d ? JSON.parse(d) : []; } catch { registeredKeys = []; }
+  try {
+    const d = localStorage.getItem(KEYS_STORAGE);
+    registeredKeys = d ? JSON.parse(d) : [];
+    registeredKeys = registeredKeys.map(k => {
+      if (typeof k === 'string') return { key: k, cooldown: 0, lastAction: 0 };
+      return k;
+    });
+  } catch { registeredKeys = []; }
 }
-function saveRegisteredKeys() { localStorage.setItem(KEYS_STORAGE, JSON.stringify(registeredKeys)); }
-function loadCooldown() {
-  try { const d = localStorage.getItem(COOLDOWN_STORAGE); cooldownMinutes = d ? parseInt(d) : 0; } catch { cooldownMinutes = 0; }
-  cooldownInput.value = cooldownMinutes;
+function saveRegisteredKeys() {
+  localStorage.setItem(KEYS_STORAGE, JSON.stringify(registeredKeys));
 }
-function saveCooldown() { localStorage.setItem(COOLDOWN_STORAGE, String(cooldownMinutes)); }
+
+function getKeyData(key) {
+  return registeredKeys.find(k => k.key === key);
+}
+
+function setKeyLastAction(key) {
+  const data = getKeyData(key);
+  if (data) {
+    data.lastAction = Date.now();
+    saveRegisteredKeys();
+  }
+}
+
+function isKeyCooldownActive(key) {
+  const data = getKeyData(key);
+  if (!data || data.cooldown === 0) return false;
+  const elapsed = (Date.now() - data.lastAction) / 60000;
+  return elapsed < data.cooldown;
+}
+
+function getKeyCooldownRemaining(key) {
+  const data = getKeyData(key);
+  if (!data || data.cooldown === 0) return 0;
+  const elapsed = (Date.now() - data.lastAction) / 60000;
+  return Math.max(0, data.cooldown - elapsed);
+}
+
+function formatCooldown(minutes) {
+  if (minutes <= 0) return '0';
+  if (minutes < 1) return Math.round(minutes * 60) + 's';
+  return Math.ceil(minutes) + 'm';
+}
 
 // ============================================================
 //  AUTH
@@ -49,7 +83,7 @@ function checkAuth() {
   if (!saved) return false;
   if (saved === OWNER_KEY) { currentUser = 'admin'; showDashboard(); return true; }
   loadRegisteredKeys();
-  if (registeredKeys.includes(saved)) { currentUser = 'user'; showDashboard(); return true; }
+  if (registeredKeys.some(k => k.key === saved)) { currentUser = 'user'; showDashboard(); return true; }
   localStorage.removeItem(STORAGE_KEY);
   return false;
 }
@@ -60,7 +94,7 @@ function doLogin() {
   if (!key) { loginError.textContent = '❌ Enter a soul key.'; return; }
   if (key === OWNER_KEY) { currentUser = 'admin'; localStorage.setItem(STORAGE_KEY, key); showDashboard(); return; }
   loadRegisteredKeys();
-  if (registeredKeys.includes(key)) { currentUser = 'user'; localStorage.setItem(STORAGE_KEY, key); showDashboard(); return; }
+  if (registeredKeys.some(k => k.key === key)) { currentUser = 'user'; localStorage.setItem(STORAGE_KEY, key); showDashboard(); return; }
   loginError.textContent = '❌ Invalid soul key.';
   loginKeyInput.value = '';
   loginKeyInput.focus();
@@ -74,7 +108,8 @@ function doLogout() {
   loginKeyInput.value = '';
   loginError.textContent = '';
   loginKeyInput.focus();
-  if (keysContainer) { keysContainer.style.display = 'none'; }
+  if (keysContainer) keysContainer.style.display = 'none';
+  if (cooldownTimer) { clearInterval(cooldownTimer); cooldownTimer = null; }
 }
 
 function showDashboard() {
@@ -97,53 +132,91 @@ function generateKey() {
     for (let i = 0; i < 12; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
     key = r;
   }
-  if (registeredKeys.includes(key)) { toast('⚠️ Key already exists.', 'warn'); return; }
-  registeredKeys.push(key);
+  if (registeredKeys.some(k => k.key === key)) { toast('⚠️ Key already exists.', 'warn'); return; }
+
+  const cd = parseInt(cooldownInput.value) || 0;
+  registeredKeys.push({ key, cooldown: cd, lastAction: 0 });
   saveRegisteredKeys();
   renderKeyList();
+  renderKeys();
   newKeyInput.value = '';
-  toast('✅ Key generated: ' + key, 'good');
+  toast('✅ Key generated: ' + key + (cd > 0 ? ` (cooldown ${cd} min)` : ''), 'good');
 }
 
 function deleteKey(key) {
   if (!confirm('Delete key: ' + key + '?')) return;
-  registeredKeys = registeredKeys.filter(k => k !== key);
+  registeredKeys = registeredKeys.filter(k => k.key !== key);
   saveRegisteredKeys();
   renderKeyList();
+  renderKeys();
   toast('🗑️ Key deleted.', 'warn');
+}
+
+function setKeyCooldown(key, newCooldown) {
+  const data = getKeyData(key);
+  if (data) {
+    data.cooldown = Math.max(0, parseInt(newCooldown) || 0);
+    data.lastAction = 0;
+    saveRegisteredKeys();
+    renderKeyList();
+    renderKeys();
+    toast('✅ Cooldown updated for ' + key, 'good');
+  }
 }
 
 function renderKeyList() {
   if (!keyList) return;
-  if (registeredKeys.length === 0) { keyList.innerHTML = '<span class="key-tag" style="color:var(--muted);">No keys generated yet.</span>'; return; }
+  if (registeredKeys.length === 0) {
+    keyList.innerHTML = '<span class="key-tag" style="color:var(--muted);">No keys generated yet.</span>';
+    return;
+  }
   let html = '';
-  registeredKeys.forEach(k => { html += `<span class="key-tag">🔑 ${k} <span class="del" data-key="${k}">✕</span></span>`; });
+  registeredKeys.forEach(k => {
+    const cd = k.cooldown || 0;
+    const remaining = getKeyCooldownRemaining(k.key);
+    const isActive = remaining > 0;
+    const status = isActive ? '⏳' : '✅';
+    const color = isActive ? 'var(--bad)' : 'var(--good)';
+    html += `<span class="key-tag">🔑 ${k.key} 
+      <span style="color:${color};">${status} ${formatCooldown(remaining)}/${cd}m</span>
+      <input type="number" id="cd_${k.key.replace(/-/g,'_')}" value="${cd}" min="0" style="width:40px;padding:2px;font-size:7px;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);">
+      <button onclick="setKeyCooldown('${k.key}', document.getElementById('cd_${k.key.replace(/-/g,'_')}').value)" style="background:transparent;border:1px solid var(--accent);color:var(--accent);padding:0 6px;font-size:7px;cursor:pointer;">SET</button>
+      <span class="del" data-key="${k.key}">✕</span>
+    </span>`;
+  });
   keyList.innerHTML = html;
-  keyList.querySelectorAll('.del').forEach(el => { el.addEventListener('click', () => deleteKey(el.dataset.key)); });
+  keyList.querySelectorAll('.del').forEach(el => {
+    el.addEventListener('click', () => deleteKey(el.dataset.key));
+  });
 }
 
 // ============================================================
-//  COOLDOWN
+//  COOLDOWN DISPLAY PER KEY (di dashboard)
 // ============================================================
-function setCooldown() {
-  const val = parseInt(cooldownInput.value);
-  if (isNaN(val) || val < 0) { toast('❌ Invalid cooldown value.', 'bad'); return; }
-  cooldownMinutes = val;
-  saveCooldown();
-  toast('✅ Cooldown set to ' + val + ' minutes.', 'good');
+function updateCooldownDisplay() {
+  if (!keysContainer) return;
+  const keyTags = keysContainer.querySelectorAll('.key-cooldown');
+  keyTags.forEach(el => {
+    const key = el.dataset.key;
+    const remaining = getKeyCooldownRemaining(key);
+    const data = getKeyData(key);
+    const cd = data ? data.cooldown : 0;
+    if (cd === 0) {
+      el.textContent = 'OFF';
+      el.style.color = 'var(--muted)';
+    } else if (remaining > 0) {
+      el.textContent = '⏳ ' + formatCooldown(remaining) + '/' + cd + 'm';
+      el.style.color = 'var(--bad)';
+    } else {
+      el.textContent = '✅ READY';
+      el.style.color = 'var(--good)';
+    }
+  });
 }
-cooldownBtn.addEventListener('click', setCooldown);
 
-function isCooldownActive() {
-  if (cooldownMinutes === 0) return false;
-  const elapsed = (Date.now() - lastActionTime) / 60000;
-  return elapsed < cooldownMinutes;
-}
-
-function getCooldownRemaining() {
-  if (cooldownMinutes === 0) return 0;
-  const elapsed = (Date.now() - lastActionTime) / 60000;
-  return Math.max(0, cooldownMinutes - elapsed);
+function startCooldownTimer() {
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(updateCooldownDisplay, 1000);
 }
 
 // ============================================================
@@ -457,13 +530,24 @@ function renderKeys() {
     const quota = state.keysQuota[item.key];
     const daily = quota ? quota.daily_remaining : '?';
     const hourly = quota ? quota.hourly_remaining : '?';
+
+    // Cooldown status untuk key ini
+    const cdData = getKeyData(item.key);
+    const cd = cdData ? cdData.cooldown : 0;
+    const remaining = getKeyCooldownRemaining(item.key);
+    const isCooldown = remaining > 0;
+    const cdStatus = cd === 0 ? 'OFF' : (isCooldown ? '⏳' + formatCooldown(remaining) + '/' + cd + 'm' : '✅ READY');
+    const cdColor = cd === 0 ? 'var(--muted)' : (isCooldown ? 'var(--bad)' : 'var(--good)');
+
     let bg = 'rgba(255,255,255,.06)', color = '#8a8a8a', border = 'rgba(255,255,255,.06)';
     if (isActive) { bg = 'rgba(34,197,94,.20)'; color = '#22c55e'; border = 'rgba(34,197,94,.4)'; }
     else if (available) { bg = 'rgba(34,197,94,.10)'; color = '#22c55e'; border = 'rgba(34,197,94,.2)'; }
     else { bg = 'rgba(239,68,68,.15)'; color = '#ef4444'; border = 'rgba(239,68,68,.3)'; }
+
     html += `<div style="display:inline-flex;align-items:center;gap:4px;background:${bg};border:1px solid ${border};padding:3px 8px;color:${color};font-size:7px;font-family:'Press Start 2P',monospace;">
       <span style="font-weight:bold;">${item.label}</span>
       <span style="opacity:0.8;">${daily}/${hourly}</span>
+      <span class="key-cooldown" data-key="${item.key}" style="color:${cdColor};">${cdStatus}</span>
       <button data-keyid="${item.id}" style="background:transparent;border:none;color:${color};cursor:${available?'pointer':'not-allowed'};font-size:7px;padding:2px 6px;${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
     </div>`;
   }
@@ -484,6 +568,8 @@ function renderKeys() {
       fetchAllKeysInBackground();
     });
   });
+  // Start timer untuk update cooldown
+  startCooldownTimer();
 }
 
 // ============================================================
@@ -532,17 +618,10 @@ async function v1FetchWithRetry(action, email, link, key, keyLabel, retryCount =
 }
 
 // ============================================================
-//  MAIN ACTION (V1, V2, V3) + COOLDOWN
+//  MAIN ACTION (V1, V2, V3)
 // ============================================================
 async function runAction() {
-  // Cooldown
-  if (isCooldownActive()) {
-    const remaining = Math.ceil(getCooldownRemaining());
-    toast(`⏱️ Cooldown ${remaining} min remaining.`, 'warn');
-    setStatus('⏱️ COOLDOWN', `Wait ${remaining} minute${remaining > 1 ? 's' : ''}.`);
-    return;
-  }
-
+  // Cooldown per key dicek di dalam V1
   const mode = state.userMode || 'v1';
   const email = emailEl.value.trim();
   const tag = tagEl.value.trim();
@@ -568,7 +647,6 @@ async function runAction() {
       setStatus('Error', 'Semua API key limit!');
       toast('❌ Semua API key habis kuota!', 'bad');
       addLog('Semua key limit');
-      // Fallback ke V2 otomatis
       state.userMode = 'v2';
       modeSelect.value = 'v2';
       setUserMode('v2');
@@ -578,6 +656,15 @@ async function runAction() {
 
     const API_KEY = activeKeyItem.key;
     const keyLabel = activeKeyItem.label;
+
+    // CEK COOLDOWN PER KEY
+    if (isKeyCooldownActive(API_KEY)) {
+      const remaining = Math.ceil(getKeyCooldownRemaining(API_KEY));
+      toast(`⏱️ ${keyLabel} cooldown ${remaining}m remaining.`, 'warn');
+      setStatus('⏱️ COOLDOWN', `${keyLabel} cooldown ${remaining}m remaining.`);
+      return;
+    }
+
     actionBtn.disabled = true;
     const action = state.mode;
 
@@ -607,11 +694,9 @@ async function runAction() {
           const nextKey = getActiveKey();
           if (nextKey) {
             toast(`🔄 Beralih ke ${nextKey.label}`, 'good');
-            // rekursif dengan key baru
             const newResult = await v1FetchWithRetry(action, email, link, nextKey.key, nextKey.label);
-            // lanjutkan dengan newResult
-            // Saya simplify: panggil ulang runAction? agak rumit.
-            // Lebih mudah: kita lempar error dan tangani di catch.
+            // Kita lanjutkan dengan newResult, tapi karena ini rekursif, kita handle di sini
+            // Saya sederhanakan: lempar error dan tangani di catch
             throw new Error(`${keyLabel} limit, switch to next`);
           } else {
             state.userMode = 'v2';
@@ -647,6 +732,8 @@ async function runAction() {
           setMode('verify');
           linkEl.focus();
           setStatus('Waiting for link', 'Cek email kamu, salin link verifikasi, tempelkan di kolom Link.');
+          // Update lastAction untuk cooldown key ini
+          setKeyLastAction(API_KEY);
         } else {
           if (data.data && data.data.status === 'activated') {
             toast(`🎉 Aktivasi berhasil! (${keyLabel})`, 'good');
@@ -656,14 +743,16 @@ async function runAction() {
             emailEl.value = ''; linkEl.value = ''; emailEl.focus();
             setMode('send');
             setStatus('Done', 'Akun premium aktif!');
+            setKeyLastAction(API_KEY);
           } else {
             toast(`Verifikasi berhasil. (${keyLabel})`, 'good');
             setProgress(2);
             pushResult(true, email, data.message);
+            setKeyLastAction(API_KEY);
           }
         }
         fetchAllKeysInBackground();
-        lastActionTime = Date.now();
+        renderKeys(); // update cooldown display
       } else {
         throw new Error(getErrorMessage(data));
       }
@@ -704,7 +793,6 @@ async function runAction() {
           setMode('verify');
           linkEl.focus();
           setStatus('Waiting for link', 'Cek email, salin link verifikasi, tempelkan di kolom Link.');
-          lastActionTime = Date.now();
         } else {
           throw new Error(data.message || 'Gagal kirim email via QSR');
         }
@@ -747,7 +835,6 @@ async function runAction() {
           setMode('send');
           setStatus('Done', 'Akun premium aktif!');
           emailEl.value = ''; linkEl.value = ''; emailEl.focus();
-          lastActionTime = Date.now();
         } else {
           throw new Error(data.message || 'Verifikasi gagal');
         }
@@ -787,7 +874,6 @@ async function runAction() {
           setMode('verify');
           linkEl.focus();
           setStatus('Waiting for link', 'Cek email, salin link verifikasi, tempelkan di kolom Link.');
-          lastActionTime = Date.now();
         } else {
           throw new Error(data.message || data.error || 'Gagal kirim email via V3');
         }
@@ -830,7 +916,6 @@ async function runAction() {
           setMode('send');
           setStatus('Done', 'Akun premium aktif!');
           emailEl.value = ''; linkEl.value = ''; emailEl.focus();
-          lastActionTime = Date.now();
         } else {
           throw new Error(data.message || data.error || 'Verifikasi gagal');
         }
@@ -927,7 +1012,7 @@ function initDashboard() {
   renderKeys();
   fetchAllKeysInBackground();
   startPolling();
-  loadCooldown();
+  loadRegisteredKeys(); // muat data key untuk cooldown
 }
 
 // ============================================================
@@ -946,4 +1031,4 @@ if (!checkAuth()) {
   loginScreen.style.display = 'flex';
   dashboard.style.display = 'none';
   loginKeyInput.focus();
-    }
+}
