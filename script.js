@@ -1,7 +1,184 @@
 // ============================================================
-//  KONFIGURASI
+//  KONFIGURASI LOGIN
 // ============================================================
-// V1: API Key
+const OWNER_KEY = 'MAHES-2928';
+const STORAGE_KEY = 'am_soul_key';
+const KEYS_STORAGE = 'am_registered_keys';
+
+// ============================================================
+//  STATE
+// ============================================================
+let currentUser = null; // 'admin' atau 'user'
+let registeredKeys = [];
+
+// ============================================================
+//  DOM REFS LOGIN
+// ============================================================
+const loginScreen = document.getElementById('loginScreen');
+const dashboard = document.getElementById('dashboard');
+const loginKeyInput = document.getElementById('loginKey');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+
+// ============================================================
+//  DOM REFS DASHBOARD
+// ============================================================
+const logoutBtn = document.getElementById('logoutBtn');
+const adminPanel = document.getElementById('adminPanel');
+const keyList = document.getElementById('keyList');
+const newKeyInput = document.getElementById('newKeyInput');
+const genKeyBtn = document.getElementById('genKeyBtn');
+
+// ============================================================
+//  LOAD REGISTERED KEYS
+// ============================================================
+function loadRegisteredKeys() {
+  try {
+    const data = localStorage.getItem(KEYS_STORAGE);
+    registeredKeys = data ? JSON.parse(data) : [];
+  } catch { registeredKeys = []; }
+}
+
+function saveRegisteredKeys() {
+  localStorage.setItem(KEYS_STORAGE, JSON.stringify(registeredKeys));
+}
+
+// ============================================================
+//  AUTH
+// ============================================================
+function checkAuth() {
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if (!savedKey) return false;
+
+  if (savedKey === OWNER_KEY) {
+    currentUser = 'admin';
+    showDashboard();
+    return true;
+  }
+
+  loadRegisteredKeys();
+  if (registeredKeys.includes(savedKey)) {
+    currentUser = 'user';
+    showDashboard();
+    return true;
+  }
+
+  // Key tidak valid, hapus
+  localStorage.removeItem(STORAGE_KEY);
+  return false;
+}
+
+function doLogin() {
+  const key = loginKeyInput.value.trim();
+  loginError.textContent = '';
+
+  if (!key) {
+    loginError.textContent = '❌ Enter a soul key.';
+    return;
+  }
+
+  if (key === OWNER_KEY) {
+    currentUser = 'admin';
+    localStorage.setItem(STORAGE_KEY, key);
+    showDashboard();
+    return;
+  }
+
+  loadRegisteredKeys();
+  if (registeredKeys.includes(key)) {
+    currentUser = 'user';
+    localStorage.setItem(STORAGE_KEY, key);
+    showDashboard();
+    return;
+  }
+
+  loginError.textContent = '❌ Invalid soul key.';
+  loginKeyInput.value = '';
+  loginKeyInput.focus();
+}
+
+function doLogout() {
+  localStorage.removeItem(STORAGE_KEY);
+  currentUser = null;
+  loginScreen.style.display = 'flex';
+  dashboard.style.display = 'none';
+  loginKeyInput.value = '';
+  loginError.textContent = '';
+  loginKeyInput.focus();
+}
+
+function showDashboard() {
+  loginScreen.style.display = 'none';
+  dashboard.style.display = 'block';
+  if (currentUser === 'admin') {
+    adminPanel.style.display = 'block';
+    renderKeyList();
+  } else {
+    adminPanel.style.display = 'none';
+  }
+  // Init dashboard setelah login
+  initDashboard();
+}
+
+// ============================================================
+//  ADMIN — GENERATE / DELETE KEYS
+// ============================================================
+function generateKey() {
+  let key = newKeyInput.value.trim();
+  if (!key) {
+    // generate random key
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    key = result;
+  }
+
+  if (registeredKeys.includes(key)) {
+    toast('⚠️ Key already exists.', 'warn');
+    return;
+  }
+
+  registeredKeys.push(key);
+  saveRegisteredKeys();
+  renderKeyList();
+  newKeyInput.value = '';
+  toast('✅ Key generated: ' + key, 'good');
+}
+
+function deleteKey(key) {
+  if (!confirm('Delete key: ' + key + '?')) return;
+  registeredKeys = registeredKeys.filter(k => k !== key);
+  saveRegisteredKeys();
+  renderKeyList();
+  toast('🗑️ Key deleted.', 'warn');
+}
+
+function renderKeyList() {
+  if (!keyList) return;
+  if (registeredKeys.length === 0) {
+    keyList.innerHTML = '<span class="key-tag" style="color:var(--muted);">No keys generated yet.</span>';
+    return;
+  }
+  let html = '';
+  registeredKeys.forEach(key => {
+    html += `<span class="key-tag">🔑 ${key} <span class="del" data-key="${key}">✕</span></span>`;
+  });
+  keyList.innerHTML = html;
+
+  // Event listener for delete
+  keyList.querySelectorAll('.del').forEach(el => {
+    el.addEventListener('click', () => deleteKey(el.dataset.key));
+  });
+}
+
+// ============================================================
+//  DASHBOARD — FULL IMPLEMENTATION (V1, V2, V3)
+// ============================================================
+// ============================================================
+//  KONFIGURASI API (sama seperti sebelumnya)
+// ============================================================
 const API_KEYS = [
   { id: 0, key: 'diy-b7620da759b5ad0f', label: 'Utama' },
   { id: 1, key: 'diy-f7734dbc50a219df', label: 'Backup 1' },
@@ -16,27 +193,20 @@ const API_KEYS = [
   { id: 10, key: 'diy-1dd1c108bbf80b8f', label: 'Backup 10' }
 ];
 const API_URL = 'https://diyymotion.vercel.app/api/am-api';
-
-// V2: QSR Web API
 const V2_API = 'https://alightmotion.qsr.web.id';
-
-// V3: Scrape API (generator-amprem.zone.id)
 const V3_API = 'https://generator-amprem.zone.id';
 
-// ============================================================
-//  STATE
-// ============================================================
 let state = {
   total: 0, success: 0, failed: 0, today: 0, history: [],
   startedAt: null, mode: 'send',
   activeKeyIndex: 0,
   keysLimit: {},
   keysQuota: {},
-  userMode: 'v1' // 'v1', 'v2', 'v3'
+  userMode: 'v1'
 };
 
 // ============================================================
-//  DOM REFS
+//  DOM REFS DASHBOARD (lanjutan)
 // ============================================================
 const emailEl = document.getElementById('email');
 const linkEl = document.getElementById('link');
@@ -58,18 +228,18 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
-//  KEYS CONTAINER (hanya untuk V1)
+//  KEYS CONTAINER (V1)
 // ============================================================
 const keysContainer = document.createElement('div');
 keysContainer.id = 'keysContainer';
-keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border-radius:16px; border:1px solid rgba(255,255,255,.06);';
+keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border-radius:0; border:1px solid var(--line);';
 const firstField = document.querySelector('.field');
 if (firstField) {
   firstField.parentNode.insertBefore(keysContainer, firstField);
 }
 
 // ============================================================
-//  UTILITY
+//  UTILITY FUNCTIONS (sama seperti sebelumnya)
 // ============================================================
 function getErrorMessage(data) {
   if (!data) return 'Unknown error';
@@ -116,9 +286,6 @@ function playSound(type) {
   } catch (e) { console.warn('Suara error', e); }
 }
 
-// ============================================================
-//  LOCALSTORAGE
-// ============================================================
 function loadState() {
   try {
     const saved = localStorage.getItem('am_dashboard_state');
@@ -130,15 +297,14 @@ function loadState() {
     }
   } catch (e) { console.warn('load state gagal', e); }
 }
+
 function saveState() {
   try { localStorage.setItem('am_dashboard_state', JSON.stringify(state)); } catch (e) { console.warn('save state gagal', e); }
 }
 
-// ============================================================
-//  CACHE
-// ============================================================
 const CACHE_KEY = 'am_keys_cache';
 const CACHE_EXPIRE = 60 * 1000;
+
 function loadCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -148,6 +314,7 @@ function loadCache() {
     return data;
   } catch { return null; }
 }
+
 function saveCache(keysLimit, keysQuota) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
@@ -158,34 +325,119 @@ function saveCache(keysLimit, keysQuota) {
   } catch (e) { console.warn('save cache gagal', e); }
 }
 
-// ============================================================
-//  UI HELPERS
-// ============================================================
 function escapeHtml(t) { if (!t) return ''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 function now() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
-function toast(msg,type='good') {
-  toastEl.className='toast '+type; toastEl.textContent=msg; toastEl.classList.add('show');
-  clearTimeout(toast._t); toast._t=setTimeout(()=>toastEl.classList.remove('show'),2400);
-  if(type==='good') playSound('success'); else if(type==='bad') playSound('error');
+
+function toast(msg, type = 'good') {
+  toastEl.className = 'toast ' + type;
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  if (type === 'good') playSound('success');
+  else if (type === 'bad') playSound('error');
 }
-function addLog(msg){ const item=document.createElement('div'); item.className='log-item'; item.innerHTML=`<small>${now()}</small> ${escapeHtml(msg)}`; logEl.prepend(item); }
+
+function addLog(msg) {
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<small>${now()}</small> ${escapeHtml(msg)}`;
+  logEl.prepend(item);
+}
+
 function renderHistory() {
   historyEl.innerHTML = state.history.length ? state.history.map((item,i)=>`
     <div class="history-item" style="animation-delay:${i*0.05}s">
-      <div><strong>${escapeHtml(item.email)}</strong><span>${escapeHtml(item.result)} ${item.tag?'· '+escapeHtml(item.tag):''}</span></div>
+      <div><strong>${escapeHtml(item.email)}</strong><span class="${item.result === 'Success' ? 'result-success' : 'result-failed'}">${escapeHtml(item.result)} ${item.tag?'· '+escapeHtml(item.tag):''}</span></div>
       <div>${escapeHtml(item.time)}</div>
     </div>`).join('') : `<div class="history-item"><div><strong>Belum ada riwayat</strong><span>Hasil akan muncul di sini.</span></div><div>—</div></div>`;
 }
-function updateStats(){ document.getElementById('totalCount').textContent=state.total; document.getElementById('successCount').textContent=state.success; document.getElementById('failedCount').textContent=state.failed; document.getElementById('todayCount').textContent=state.today; saveState(); }
-function setProgress(stepIndex){ steps.forEach((el,i)=>el.classList.toggle('active',i<=stepIndex)); const pct=[0,33,66,100][stepIndex]??0; barFill.style.width=pct+'%'; }
-function setStatus(title,text){ statusTitle.textContent=title; statusText.textContent=text; }
-function confettiBurst(){ confettiEl.innerHTML=''; const colors=['#60a5fa','#8b5cf6','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316']; const shapes=['circle','square','triangle']; for(let i=0;i<45;i++){ const piece=document.createElement('i'); const size=6+Math.random()*12; const shape=shapes[Math.floor(Math.random()*shapes.length)]; piece.style.left=Math.random()*100+'vw'; piece.style.background=colors[Math.floor(Math.random()*colors.length)]; piece.style.animationDuration=(0.8+Math.random()*1.0)+'s'; piece.style.width=size+'px'; piece.style.height=size+'px'; piece.style.borderRadius=shape==='circle'?'50%':shape==='square'?'2px':'0'; piece.style.transform='rotate('+(Math.random()*360)+'deg)'; if(shape==='triangle'){ piece.style.clipPath='polygon(50% 0%, 0% 100%, 100% 100%)'; piece.style.borderRadius='0'; } confettiEl.appendChild(piece); } setTimeout(()=>confettiEl.innerHTML='',2000); }
-function validateEmail(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
-function pushResult(ok,email,detail){ state.total+=1; state.today+=1; if(ok) state.success+=1; else state.failed+=1; state.history.unshift({email,result:ok?'Success':'Failed',detail,tag:tagEl.value.trim(),time:now()}); if(state.history.length>8) state.history.pop(); renderHistory(); updateStats(); }
-function setMode(mode){
-  state.mode=mode;
-  if(mode==='send'){ actionBtn.textContent='Send'; actionBtn.className='btn-primary'; copyBtn.style.display='none'; linkField.style.display='none'; setProgress(0); setStatus('Ready','Isi email lalu kirim.'); }
-  else { actionBtn.textContent='Verify'; actionBtn.className='btn-primary'; copyBtn.style.display='inline-block'; linkField.style.display='block'; setProgress(2); setStatus('Ready','Tempelkan link verifikasi lalu klik Verify.'); linkEl.focus(); }
+
+function updateStats() {
+  document.getElementById('totalCount').textContent = state.total;
+  document.getElementById('successCount').textContent = state.success;
+  document.getElementById('failedCount').textContent = state.failed;
+  document.getElementById('todayCount').textContent = state.today;
+  saveState();
+}
+
+function setProgress(stepIndex) {
+  steps.forEach((el, i) => {
+    el.classList.toggle('active', i <= stepIndex);
+    if (i === stepIndex && stepIndex === 3) el.classList.add('done');
+  });
+  const pct = [0, 33, 66, 100][stepIndex] ?? 0;
+  barFill.style.width = pct + '%';
+}
+
+function setStatus(title, text) {
+  statusTitle.textContent = title;
+  statusText.textContent = text;
+}
+
+function confettiBurst() {
+  confettiEl.innerHTML = '';
+  const colors = ['#60a5fa', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
+  const shapes = ['circle', 'square', 'triangle'];
+  for (let i = 0; i < 45; i++) {
+    const piece = document.createElement('i');
+    const size = 6 + Math.random() * 12;
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    piece.style.left = Math.random() * 100 + 'vw';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = (0.8 + Math.random() * 1.0) + 's';
+    piece.style.width = size + 'px';
+    piece.style.height = size + 'px';
+    piece.style.borderRadius = shape === 'circle' ? '50%' : shape === 'square' ? '2px' : '0';
+    piece.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+    if (shape === 'triangle') {
+      piece.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      piece.style.borderRadius = '0';
+    }
+    confettiEl.appendChild(piece);
+  }
+  setTimeout(() => confettiEl.innerHTML = '', 2000);
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function pushResult(ok, email, detail) {
+  state.total += 1;
+  state.today += 1;
+  if (ok) state.success += 1;
+  else state.failed += 1;
+  state.history.unshift({
+    email,
+    result: ok ? 'Success' : 'Failed',
+    detail,
+    tag: tagEl.value.trim(),
+    time: now()
+  });
+  if (state.history.length > 8) state.history.pop();
+  renderHistory();
+  updateStats();
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  if (mode === 'send') {
+    actionBtn.textContent = '⚔️ SEND';
+    actionBtn.className = 'btn-primary';
+    copyBtn.style.display = 'none';
+    linkField.style.display = 'none';
+    setProgress(0);
+    setStatus('❤ READY', 'Enter your email and press SEND.');
+  } else {
+    actionBtn.textContent = '🔍 VERIFY';
+    actionBtn.className = 'btn-action';
+    copyBtn.style.display = 'inline-block';
+    linkField.style.display = 'block';
+    setProgress(2);
+    setStatus('🔍 VERIFY', 'Paste the link and press VERIFY.');
+    linkEl.focus();
+  }
   saveState();
 }
 
@@ -197,18 +449,14 @@ function setUserMode(mode) {
   modeSelect.value = mode;
   if (mode === 'v1') {
     keysContainer.style.display = 'block';
-    document.getElementById('email').placeholder = 'contoh@gmail.com';
+    document.getElementById('email').placeholder = 'your@email.com';
     document.getElementById('email').readOnly = false;
-    document.getElementById('email').value = '';
-    document.getElementById('link').value = '';
     setStatus('V1 Aktif', 'Gunakan API key diyy');
     toast('🔁 Mode V1 (API Key) aktif', 'good');
   } else {
     keysContainer.style.display = 'none';
-    document.getElementById('email').placeholder = mode === 'v2' ? 'Masukkan email custom' : 'Email untuk V3';
+    document.getElementById('email').placeholder = mode === 'v2' ? 'Email untuk V2' : 'Email untuk V3';
     document.getElementById('email').readOnly = false;
-    document.getElementById('email').value = '';
-    document.getElementById('link').value = '';
     setStatus(mode === 'v2' ? 'V2 Aktif' : 'V3 Aktif', mode === 'v2' ? 'Kirim email via QSR Web API' : 'Kirim email via Scrape API');
     toast(`🔁 Mode ${mode.toUpperCase()} (${mode === 'v2' ? 'QSG Web' : 'Scrape API'}) aktif`, 'good');
   }
@@ -220,7 +468,7 @@ modeSelect.addEventListener('change', (e) => {
 });
 
 // ============================================================
-//  V1: CEK LIMIT & KUOTA (PARALLEL)
+//  V1: CEK LIMIT & KUOTA
 // ============================================================
 async function fetchKeyStatus(apiKey) {
   try {
@@ -299,13 +547,10 @@ function getActiveKey() {
   return null;
 }
 
-// ============================================================
-//  RENDER KEYS (V1 ONLY)
-// ============================================================
 function renderKeys() {
   if (!keysContainer) return;
   let html = `<div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">`;
-  html += `<span style="font-size:11px; color:#94a3b8; margin-right:4px;">🔑 Pilih Key:</span>`;
+  html += `<span style="font-size:8px; color:var(--muted); margin-right:4px;">🔑 Pilih Key:</span>`;
   for (const item of API_KEYS) {
     const available = isKeyAvailable(item.key);
     const isActive = (state.activeKeyIndex === item.id);
@@ -314,7 +559,7 @@ function renderKeys() {
     const hourly = quota ? quota.hourly_remaining : '?';
 
     let bg = 'rgba(255,255,255,.06)';
-    let color = '#94a3b8';
+    let color = '#8a8a8a';
     let border = 'rgba(255,255,255,.06)';
     if (isActive) {
       bg = 'rgba(34,197,94,.20)';
@@ -331,10 +576,10 @@ function renderKeys() {
     }
 
     html += `
-      <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; border-radius:20px; padding:3px 8px; color:${color}; font-size:11px;">
-        <span style="font-weight:600;">${item.label}</span>
-        <span style="opacity:0.8; font-size:10px;">D:${daily} H:${hourly}</span>
-        <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:10px; padding:2px 6px; border-radius:8px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
+      <div style="display:inline-flex; align-items:center; gap:4px; background:${bg}; border:1px solid ${border}; padding:3px 8px; color:${color}; font-size:7px; font-family:'Press Start 2P',monospace;">
+        <span style="font-weight:bold;">${item.label}</span>
+        <span style="opacity:0.8;">${daily}/${hourly}</span>
+        <button data-keyid="${item.id}" style="background:transparent; border:none; color:${color}; cursor:${available?'pointer':'not-allowed'}; font-size:7px; padding:2px 6px; ${!available?'opacity:0.5;':''}" ${!available?'disabled':''}>${isActive?'✓':'pilih'}</button>
       </div>
     `;
   }
@@ -366,7 +611,6 @@ async function runAction() {
   const email = emailEl.value.trim();
   const tag = tagEl.value.trim();
 
-  // Validasi email
   if (!email || !validateEmail(email)) {
     setStatus('Error', 'Email tidak valid.');
     toast('Masukkan email yang valid.', 'bad');
@@ -500,12 +744,10 @@ async function runAction() {
   }
 
   // ============================================================
-  //  V2: PAKE QSR WEB API (tanpa API key)
+  //  V2: PAKE QSR WEB API
   // ============================================================
   if (mode === 'v2') {
     const action = state.mode;
-
-    // V2 Send
     if (action === 'send') {
       actionBtn.disabled = true;
       setProgress(0);
@@ -516,7 +758,6 @@ async function runAction() {
         const url = `${V2_API}/api/email-prem?email=${encodeURIComponent(email)}`;
         const res = await fetch(url);
         const data = await res.json();
-
         addLog(`📦 V2 Send Response: ${JSON.stringify(data)}`);
 
         if (data.status === true && data.code === 200) {
@@ -542,7 +783,6 @@ async function runAction() {
       return;
     }
 
-    // V2 Verify
     if (action === 'verify') {
       const link = linkEl.value.trim();
       if (!link || !link.startsWith('http')) {
@@ -561,7 +801,6 @@ async function runAction() {
         const url = `${V2_API}/api/vertif-prem?email=${encodeURIComponent(email)}&link=${encodeURIComponent(link)}`;
         const res = await fetch(url);
         const data = await res.json();
-
         addLog(`📦 V2 Verify Response: ${JSON.stringify(data)}`);
 
         if (data.status === true && data.code === 200 && data.success === true) {
@@ -596,8 +835,6 @@ async function runAction() {
   // ============================================================
   if (mode === 'v3') {
     const action = state.mode;
-
-    // V3 Send
     if (action === 'send') {
       actionBtn.disabled = true;
       setProgress(0);
@@ -608,7 +845,6 @@ async function runAction() {
         const url = `${V3_API}/api/amsend?email=${encodeURIComponent(email)}`;
         const res = await fetch(url);
         const data = await res.json();
-
         addLog(`📦 V3 Send Response: ${JSON.stringify(data)}`);
 
         if (data.status === true || data.success === true) {
@@ -634,7 +870,6 @@ async function runAction() {
       return;
     }
 
-    // V3 Verify
     if (action === 'verify') {
       const link = linkEl.value.trim();
       if (!link || !link.startsWith('http')) {
@@ -653,7 +888,6 @@ async function runAction() {
         const url = `${V3_API}/api/amverif?email=${encodeURIComponent(email)}&link=${encodeURIComponent(link)}`;
         const res = await fetch(url);
         const data = await res.json();
-
         addLog(`📦 V3 Verify Response: ${JSON.stringify(data)}`);
 
         if (data.status === true || data.success === true) {
@@ -685,7 +919,7 @@ async function runAction() {
 }
 
 // ============================================================
-//  EVENT LISTENERS
+//  EVENT LISTENERS DASHBOARD
 // ============================================================
 actionBtn.addEventListener('click', runAction);
 
@@ -713,8 +947,14 @@ exportBtn.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runAction(); }
-  if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); clearBtn.click(); }
+  if (e.key === 'Enter' && !e.shiftKey && dashboard.style.display !== 'none') {
+    e.preventDefault();
+    runAction();
+  }
+  if (e.ctrlKey && e.key.toLowerCase() === 'k' && dashboard.style.display !== 'none') {
+    e.preventDefault();
+    clearBtn.click();
+  }
 });
 
 // ============================================================
@@ -741,21 +981,19 @@ function startPolling() {
 }
 
 // ============================================================
-//  INIT
+//  INIT DASHBOARD
 // ============================================================
-(async function init() {
+function initDashboard() {
   loadState();
   renderHistory();
   updateStats();
   setMode(state.mode || 'send');
   setProgress(0);
 
-  // Set mode dari state
   const savedMode = state.userMode || 'v1';
   modeSelect.value = savedMode;
   setUserMode(savedMode);
 
-  // V1: load cache & fetch keys
   const cached = loadCache();
   if (cached) {
     state.keysLimit = cached.keysLimit;
@@ -770,6 +1008,36 @@ function startPolling() {
   else if (savedMode === 'v3') toast('🔁 V3 (Scrape API) aktif', 'good');
   else toast('⚠️ Semua API key limit!', 'bad');
 
-  await fetchAllKeysInBackground();
+  fetchAllKeysInBackground();
   startPolling();
-})();
+}
+
+// ============================================================
+//  LOGIN EVENT
+// ============================================================
+loginBtn.addEventListener('click', doLogin);
+loginKeyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ============================================================
+//  LOGOUT EVENT
+// ============================================================
+logoutBtn.addEventListener('click', doLogout);
+
+// ============================================================
+//  ADMIN — GENERATE KEY
+// ============================================================
+genKeyBtn.addEventListener('click', generateKey);
+newKeyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') generateKey();
+});
+
+// ============================================================
+//  CHECK AUTH ON LOAD
+// ============================================================
+if (!checkAuth()) {
+  loginScreen.style.display = 'flex';
+  dashboard.style.display = 'none';
+  loginKeyInput.focus();
+}
