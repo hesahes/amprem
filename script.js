@@ -74,7 +74,6 @@ function doLogout() {
   loginKeyInput.value = '';
   loginError.textContent = '';
   loginKeyInput.focus();
-  // Hapus container key jika ada
   if (keysContainer) { keysContainer.style.display = 'none'; }
 }
 
@@ -82,10 +81,8 @@ function showDashboard() {
   loginScreen.style.display = 'none';
   dashboard.style.display = 'block';
   if (currentUser === 'admin') { adminPanel.style.display = 'block'; renderKeyList(); } else { adminPanel.style.display = 'none'; }
-  // Reset mode ke V1 setiap login
   state.userMode = 'v1';
   modeSelect.value = 'v1';
-  setUserMode('v1');
   initDashboard();
 }
 
@@ -201,14 +198,13 @@ const steps = [...document.querySelectorAll('.step')];
 const linkField = document.getElementById('linkField');
 
 // ============================================================
-//  BUILD KEYS CONTAINER (HANYA DI DASHBOARD)
+//  BUILD KEYS CONTAINER
 // ============================================================
 function buildKeysContainer() {
   if (keysContainer) return keysContainer;
   keysContainer = document.createElement('div');
   keysContainer.id = 'keysContainer';
   keysContainer.style.cssText = 'margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,.03); border:1px solid var(--line);';
-  // Sisipkan sebelum field email (firstField)
   const firstField = document.querySelector('.field');
   if (firstField) firstField.parentNode.insertBefore(keysContainer, firstField);
   return keysContainer;
@@ -346,11 +342,13 @@ function setUserMode(mode) {
   state.userMode = mode;
   modeSelect.value = mode;
   if (mode === 'v1') {
+    buildKeysContainer();
     if (keysContainer) keysContainer.style.display = 'block';
     document.getElementById('email').placeholder = 'your@email.com';
     document.getElementById('email').readOnly = false;
     setStatus('V1 Aktif', 'Gunakan API key diyy');
     toast('🔁 Mode V1 (API Key) aktif', 'good');
+    renderKeys(); // <-- DIPAKE RENDER BIAR MUNCUL
   } else {
     if (keysContainer) keysContainer.style.display = 'none';
     document.getElementById('email').placeholder = mode === 'v2' ? 'Email untuk V2' : 'Email untuk V3';
@@ -467,7 +465,6 @@ function renderKeys() {
 //  MAIN ACTION (V1, V2, V3) + COOLDOWN
 // ============================================================
 async function runAction() {
-  // Check cooldown
   if (isCooldownActive()) {
     const remaining = Math.ceil(getCooldownRemaining());
     toast(`⏱️ Cooldown ${remaining} min remaining.`, 'warn');
@@ -570,7 +567,7 @@ async function runAction() {
           }
         }
         fetchAllKeysInBackground();
-        lastActionTime = Date.now(); // update cooldown
+        lastActionTime = Date.now();
       } else {
         throw new Error(getErrorMessage(data));
       }
@@ -815,8 +812,9 @@ function initDashboard() {
   updateStats();
   setMode(state.mode || 'send');
   setProgress(0);
-  // Buat container keys (hanya di dashboard)
   buildKeysContainer();
+  // Pastikan V1 aktif dan render keys
+  setUserMode('v1');
   const cached = loadCache();
   if (cached) {
     state.keysLimit = cached.keysLimit;
@@ -845,4 +843,4 @@ if (!checkAuth()) {
   loginScreen.style.display = 'flex';
   dashboard.style.display = 'none';
   loginKeyInput.focus();
-      }
+            }
