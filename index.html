@@ -3,377 +3,723 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AM Premium • Live</title>
+<title>AM Premium • Undertale</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0b1220;
-    --bg2:#111827;
-    --card:rgba(15,23,42,.76);
-    --line:rgba(255,255,255,.10);
-    --text:#e5e7eb;
-    --muted:#94a3b8;
-    --good:#22c55e;
-    --bad:#ef4444;
-    --warn:#f59e0b;
-    --accent:#60a5fa;
-    --accent2:#8b5cf6;
+  /* ============================================================
+     UNDERTALE THEME — RESET & BASE
+     ============================================================ */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    image-rendering: pixelated;
   }
-  [data-theme="light"]{
-    --bg:#eef2ff;
-    --bg2:#f8fafc;
-    --card:rgba(255,255,255,.80);
-    --line:rgba(15,23,42,.10);
-    --text:#0f172a;
-    --muted:#475569;
-    --accent:#2563eb;
-    --accent2:#7c3aed;
+
+  :root {
+    --bg: #000000;
+    --bg2: #0a0a0a;
+    --card: rgba(10, 10, 10, 0.92);
+    --line: rgba(255, 255, 255, 0.15);
+    --text: #ffffff;
+    --muted: #8a8a8a;
+    --good: #7cfc00;
+    --bad: #ff4444;
+    --warn: #ffd700;
+    --accent: #4488ff;
+    --accent2: #ffd700;
+    --soul: #ff69b4;
+    --hp: #ff4444;
+    --exp: #44ff88;
   }
-  *{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+
+  [data-theme="light"] {
+    --bg: #f0f0f0;
+    --bg2: #e8e8e8;
+    --card: rgba(240, 240, 240, 0.92);
+    --line: rgba(0, 0, 0, 0.15);
+    --text: #1a1a1a;
+    --muted: #666666;
   }
-  body{
-    min-height:100vh;
-    color:var(--text);
-    background:
-      radial-gradient(circle at top left, rgba(96,165,250,.18), transparent 30%),
-      radial-gradient(circle at bottom right, rgba(139,92,246,.16), transparent 35%),
-      linear-gradient(135deg, var(--bg), var(--bg2));
-    padding:24px;
+
+  body {
+    min-height: 100vh;
+    color: var(--text);
+    background: var(--bg);
+    font-family: 'Press Start 2P', monospace;
+    padding: 16px;
+    image-rendering: pixelated;
+    background-image: 
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 30px 30px;
+    position: relative;
+    overflow-x: hidden;
   }
-  .app{
-    max-width:760px;
-    margin:0 auto;
-    animation:fadeIn .45s ease both;
+
+  /* ============================================================
+     FALLING SOULS BACKGROUND
+     ============================================================ */
+  .bg-souls {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
   }
-  @keyframes fadeIn{
-    from{ opacity:0; transform:translateY(10px); }
-    to{ opacity:1; transform:translateY(0); }
+
+  .bg-souls span {
+    position: absolute;
+    display: block;
+    font-size: 20px;
+    opacity: 0.04;
+    animation: floatDown linear infinite;
+    user-select: none;
+    color: var(--soul);
   }
-  .topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:16px;
-    margin-bottom:18px;
-    flex-wrap:wrap;
+
+  @keyframes floatDown {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.06; }
+    90% { opacity: 0.06; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
   }
-  .brand{
-    display:flex;
-    align-items:center;
-    gap:12px;
+
+  /* ============================================================
+     MAIN APP
+     ============================================================ */
+  .app {
+    max-width: 780px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    animation: fadeIn 0.6s ease both;
   }
-  .logo{
-    width:46px;
-    height:46px;
-    border-radius:15px;
-    display:grid;
-    place-items:center;
-    color:#fff;
-    font-weight:800;
-    background:linear-gradient(135deg, var(--accent), var(--accent2));
-    box-shadow:0 16px 30px rgba(59,130,246,.22);
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .brand h1{
-    font-size:22px;
-    line-height:1.1;
-    letter-spacing:-.03em;
+
+  /* ============================================================
+     TOP BAR — UNDERTALE STYLE
+     ============================================================ */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 0;
+    flex-wrap: wrap;
+    position: relative;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
   }
-  .brand p{
-    color:var(--muted);
-    font-size:13px;
-    margin-top:4px;
+
+  .topbar::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(255,255,255,0.05);
+    pointer-events: none;
   }
-  .actions{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
-  .actions select{
-    background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.1);
-    border-radius:12px;
-    padding:8px 12px;
-    color:#e5e7eb;
-    font-size:13px;
-    outline:none;
-    cursor:pointer;
+
+  .logo {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--soul);
+    border: 2px solid var(--soul);
+    background: rgba(255,105,180,0.08);
+    position: relative;
+    animation: pulseSoul 2s ease-in-out infinite;
   }
-  .actions select:focus{
-    border-color:rgba(96,165,250,.55);
+
+  @keyframes pulseSoul {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,105,180,0.15); }
   }
-  button{
-    border:none;
-    border-radius:14px;
-    padding:12px 16px;
-    font-weight:700;
-    cursor:pointer;
-    transition:.18s ease;
+
+  .logo span {
+    animation: soulFloat 3s ease-in-out infinite;
   }
-  button:hover{ transform:translateY(-1px); }
-  button:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
-  .btn-primary{
-    color:#fff;
-    background:linear-gradient(135deg, var(--accent), var(--accent2));
+
+  @keyframes soulFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
   }
-  .btn-ghost{
-    color:var(--text);
-    background:rgba(255,255,255,.08);
-    border:1px solid var(--line);
+
+  .brand h1 {
+    font-size: 16px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(68,136,255,0.2);
   }
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:22px;
-    padding:24px;
-    backdrop-filter:blur(18px);
-    -webkit-backdrop-filter:blur(18px);
-    box-shadow:0 18px 50px rgba(0,0,0,.18);
+
+  .brand h1 .ut {
+    color: var(--accent);
   }
-  .card h2{
-    font-size:18px;
-    margin-bottom:8px;
-    letter-spacing:-.02em;
+  .brand h1 .nder {
+    color: var(--accent2);
   }
-  .sub{
-    color:var(--muted);
-    font-size:13px;
-    margin-bottom:18px;
-    line-height:1.5;
+
+  .brand p {
+    color: var(--muted);
+    font-size: 8px;
+    margin-top: 4px;
+    letter-spacing: 1px;
+    opacity: 0.6;
   }
-  .stats{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:12px;
-    margin-bottom:18px;
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .stat{
-    padding:14px;
-    border-radius:18px;
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.04);
+
+  .actions select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 6px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    outline: none;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    background: var(--bg);
   }
-  .stat .label{
-    color:var(--muted);
-    font-size:12px;
-    margin-bottom:8px;
+
+  .actions select:focus {
+    border-color: var(--accent);
   }
-  .stat .value{
-    font-size:22px;
-    font-weight:800;
-    letter-spacing:-.03em;
+
+  /* ============================================================
+     BUTTONS — UNDERTALE BATTLE STYLE
+     ============================================================ */
+  button {
+    border: 2px solid var(--line);
+    padding: 8px 16px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: transparent;
+    color: var(--text);
+    letter-spacing: 1px;
+    position: relative;
+    text-transform: uppercase;
+    image-rendering: pixelated;
   }
-  .field{
-    display:grid;
-    gap:8px;
-    margin-bottom:14px;
+
+  button:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 4px 20px rgba(68,136,255,0.15);
   }
-  label{
-    font-size:13px;
-    color:var(--muted);
+
+  button:active {
+    transform: translateY(0) scale(0.97);
   }
-  input{
-    width:100%;
-    border-radius:14px;
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.05);
-    color:var(--text);
-    padding:13px 14px;
-    outline:none;
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    filter: grayscale(0.5);
   }
-  input:focus{
-    border-color:rgba(96,165,250,.55);
-    box-shadow:0 0 0 4px rgba(96,165,250,.12);
+
+  .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(68,136,255,0.05);
   }
-  .row{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
+
+  .btn-primary:hover {
+    background: rgba(68,136,255,0.12);
+    box-shadow: 0 0 30px rgba(68,136,255,0.08);
   }
-  .progress{
-    margin:14px 0 18px;
-    display:grid;
-    gap:10px;
+
+  .btn-primary:disabled {
+    border-color: var(--muted);
+    color: var(--muted);
+    background: transparent;
   }
-  .steps{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:10px;
+
+  .btn-action {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(255,215,0,0.05);
   }
-  .step{
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.04);
-    border-radius:16px;
-    padding:12px;
-    text-align:center;
-    font-size:13px;
-    color:var(--muted);
-    transition:.2s ease;
+
+  .btn-action:hover {
+    background: rgba(255,215,0,0.12);
+    box-shadow: 0 0 30px rgba(255,215,0,0.08);
   }
-  .step.active{
-    color:#fff;
-    background:linear-gradient(135deg, rgba(96,165,250,.18), rgba(139,92,246,.14));
-    border-color:rgba(96,165,250,.28);
-    transform:translateY(-1px);
+
+  .btn-danger {
+    border-color: var(--bad);
+    color: var(--bad);
+    background: rgba(255,68,68,0.05);
   }
-  .bar{
-    width:100%;
-    height:12px;
-    border-radius:999px;
-    overflow:hidden;
-    background:rgba(255,255,255,.08);
-    border:1px solid var(--line);
-    position:relative;
+
+  .btn-danger:hover {
+    background: rgba(255,68,68,0.12);
+    box-shadow: 0 0 30px rgba(255,68,68,0.08);
   }
-  .bar > div{
-    width:0%;
-    height:100%;
-    border-radius:999px;
-    background:linear-gradient(135deg, var(--accent), var(--accent2));
-    transition:width .3s ease;
-    position:relative;
+
+  .btn-ghost {
+    border-color: var(--muted);
+    color: var(--muted);
+    background: transparent;
   }
-  .bar > div::after{
-    content:'';
-    position:absolute;
-    inset:0;
-    background:linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
-    transform:translateX(-100%);
-    animation:shimmer 2s infinite;
+
+  .btn-ghost:hover {
+    border-color: var(--text);
+    color: var(--text);
   }
-  @keyframes shimmer{
-    0%{ transform:translateX(-100%); }
-    100%{ transform:translateX(100%); }
+
+  .btn-sm {
+    font-size: 7px;
+    padding: 4px 10px;
   }
-  .controls{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-top:12px;
+
+  /* ============================================================
+     CARDS — UNDERTALE BOX STYLE
+     ============================================================ */
+  .card {
+    background: var(--card);
+    border: 2px solid var(--line);
+    padding: 24px;
+    margin-bottom: 18px;
+    position: relative;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.3);
   }
-  .status{
-    margin-top:14px;
-    border-radius:16px;
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.04);
-    padding:14px;
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(255,255,255,0.03);
+    pointer-events: none;
   }
-  .status strong{ display:block; margin-bottom:6px; }
-  .status p{ color:var(--muted); font-size:13px; line-height:1.5; }
-  .log{
-    height:200px;
-    overflow:auto;
-    padding-right:4px;
-    display:grid;
-    gap:8px;
-    margin-top:6px;
+
+  .card h2 {
+    font-size: 14px;
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
   }
-  .log-item{
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.04);
-    border-radius:14px;
-    padding:10px 13px;
-    font-size:13px;
-    line-height:1.45;
-    animation:slideIn .3s ease both;
+
+  .card .sub {
+    color: var(--muted);
+    font-size: 9px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+    line-height: 1.6;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
   }
-  @keyframes slideIn{
-    from{ opacity:0; transform:translateX(-12px); }
-    to{ opacity:1; transform:translateX(0); }
+
+  /* ============================================================
+     STATS — HP / EXP STYLE
+     ============================================================ */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
   }
-  .log-item small{
-    display:block;
-    color:var(--muted);
-    margin-bottom:4px;
-    font-size:11px;
+
+  .stat {
+    padding: 12px 10px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+    text-align: center;
+    position: relative;
   }
-  .history{
-    display:grid;
-    gap:10px;
-    margin-top:6px;
+
+  .stat .label {
+    color: var(--muted);
+    font-size: 7px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
-  .history-item{
-    display:flex;
-    justify-content:space-between;
-    gap:12px;
-    align-items:center;
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.04);
-    border-radius:14px;
-    padding:10px 13px;
-    font-size:13px;
-    animation:slideIn .3s ease both;
+
+  .stat .value {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
   }
-  .history-item span{
-    color:var(--muted);
-    display:block;
-    font-size:12px;
-    margin-top:4px;
+
+  .stat.hp .value { color: var(--hp); }
+  .stat.exp .value { color: var(--exp); }
+  .stat.soul .value { color: var(--soul); }
+  .stat.gold .value { color: var(--accent2); }
+
+  /* ============================================================
+     FIELDS — UNDERTALE INPUT
+     ============================================================ */
+  .field {
+    margin-bottom: 12px;
   }
-  .toast{
-    position:fixed;
-    right:18px;
-    bottom:18px;
-    min-width:220px;
-    max-width:92vw;
-    padding:12px 14px;
-    border-radius:14px;
-    color:white;
-    background:rgba(15,23,42,.94);
-    border:1px solid rgba(255,255,255,.12);
-    box-shadow:0 18px 45px rgba(0,0,0,.28);
-    transform:translateY(16px);
-    opacity:0;
-    pointer-events:none;
-    transition:.22s ease;
-    z-index:9999;
+
+  label {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
   }
-  .toast.show{ transform:translateY(0); opacity:1; }
-  .toast.good{ border-color:rgba(34,197,94,.35); }
-  .toast.bad{ border-color:rgba(239,68,68,.35); }
-  .toast.warn{ border-color:rgba(245,158,11,.35); }
-  .confetti{
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    overflow:hidden;
-    z-index:9998;
+
+  input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    outline: none;
+    transition: all 0.2s ease;
   }
-  .confetti i{
-    position:absolute;
-    width:10px;
-    height:16px;
-    top:-24px;
-    border-radius:3px;
-    background:var(--accent);
-    animation:fall linear forwards;
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(68,136,255,0.05);
   }
-  @keyframes fall{
-    to{
-      transform:translateY(110vh) rotate(720deg);
-      opacity:0;
+
+  input::placeholder {
+    color: var(--muted);
+    opacity: 0.4;
+    font-size: 8px;
+  }
+
+  input[readonly] {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ============================================================
+     PROGRESS — UNDERTALE BATTLE BAR
+     ============================================================ */
+  .progress {
+    margin: 14px 0 18px;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .step {
+    border: 1px solid var(--line);
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 7px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .step.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(68,136,255,0.06);
+    box-shadow: inset 0 0 20px rgba(68,136,255,0.03);
+  }
+
+  .step.done {
+    border-color: var(--good);
+    color: var(--good);
+    background: rgba(124,252,0,0.06);
+  }
+
+  .bar {
+    width: 100%;
+    height: 8px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bar > div {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  .bar > div::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* ============================================================
+     CONTROLS
+     ============================================================ */
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .controls button {
+    flex: 1;
+    min-width: 60px;
+    text-align: center;
+    font-size: 8px;
+  }
+
+  /* ============================================================
+     STATUS
+     ============================================================ */
+  .status {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .status strong {
+    display: block;
+    font-size: 10px;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+
+  .status p {
+    color: var(--muted);
+    font-size: 8px;
+    line-height: 1.6;
+    letter-spacing: 0.3px;
+  }
+
+  /* ============================================================
+     LOG & HISTORY
+     ============================================================ */
+  .log {
+    height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-right: 4px;
+  }
+
+  .log::-webkit-scrollbar {
+    width: 4px;
+  }
+  .log::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.02);
+  }
+  .log::-webkit-scrollbar-thumb {
+    background: var(--line);
+  }
+
+  .log-item {
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    font-size: 8px;
+    line-height: 1.6;
+    animation: slideIn 0.25s ease both;
+    background: rgba(255,255,255,0.02);
+    font-family: 'Press Start 2P', monospace;
+    letter-spacing: 0.3px;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-item small {
+    display: block;
+    color: var(--muted);
+    font-size: 6px;
+    margin-bottom: 4px;
+    opacity: 0.6;
+    letter-spacing: 0.5px;
+  }
+
+  .log-item .good { color: var(--good); }
+  .log-item .bad { color: var(--bad); }
+  .log-item .warn { color: var(--warn); }
+  .log-item .info { color: var(--accent); }
+
+  .history {
+    display: grid;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    font-size: 8px;
+    animation: slideIn 0.25s ease both;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .history-item strong {
+    font-size: 9px;
+    color: var(--text);
+  }
+
+  .history-item .result-success { color: var(--good); }
+  .history-item .result-failed { color: var(--bad); }
+
+  .history-item span {
+    color: var(--muted);
+    display: block;
+    font-size: 6px;
+    margin-top: 2px;
+    opacity: 0.6;
+  }
+
+  /* ============================================================
+     TOAST — UNDERTALE TEXT BOX
+     ============================================================ */
+  .toast {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    min-width: 200px;
+    max-width: 90vw;
+    padding: 12px 18px;
+    border: 2px solid var(--line);
+    color: var(--text);
+    background: var(--bg);
+    transform: translateY(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s ease;
+    z-index: 9999;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .toast.good { border-color: var(--good); }
+  .toast.bad { border-color: var(--bad); }
+  .toast.warn { border-color: var(--warn); }
+
+  /* ============================================================
+     CONFETTI — UNDERTALE DUST EFFECT
+     ============================================================ */
+  .confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 9998;
+  }
+
+  .confetti i {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    top: -20px;
+    background: var(--accent2);
+    animation: fall linear forwards;
+    transform: rotate(45deg);
+    opacity: 0.8;
+  }
+
+  @keyframes fall {
+    to {
+      transform: translateY(110vh) rotate(720deg);
+      opacity: 0;
     }
   }
-  @media (max-width: 540px){
-    body{ padding:16px; }
-    .card{ padding:18px; border-radius:18px; }
-    .stats{ grid-template-columns:repeat(2,1fr); }
-    .row{ grid-template-columns:1fr; }
-    .actions{ width:100%; }
-    .actions button{ flex:1; }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .card { padding: 16px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 1fr; }
+    .actions { width: 100%; }
+    .actions select { flex: 1; }
+    .controls button { flex: 1; min-width: 40px; font-size: 7px; padding: 6px 10px; }
+    .brand h1 { font-size: 12px; }
+    .topbar { padding: 10px 12px; }
+    .stat .value { font-size: 14px; }
+  }
+
+  @media (max-width: 400px) {
+    .stats { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat { padding: 8px; }
+    .steps .step { font-size: 6px; padding: 4px 2px; }
+    .card h2 { font-size: 11px; }
   }
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     FALLING SOULS BACKGROUND
+     ============================================================ -->
+<div class="bg-souls" id="bgSouls"></div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
 <div class="app">
+
+  <!-- TOP BAR -->
   <div class="topbar">
     <div class="brand">
-      <div class="logo">P</div>
+      <div class="logo"><span>❤</span></div>
       <div>
-        <h1>AM Premium</h1>
+        <h1><span class="ut">AM</span><span class="nder"> Premium</span></h1>
         <p>@mahes.doang</p>
       </div>
     </div>
@@ -381,83 +727,119 @@
       <select id="modeSelect">
         <option value="v1">V1 (API Key)</option>
         <option value="v2">V2 (QSG Web)</option>
+        <option value="v3">V3 (Scrape)</option>
       </select>
-      <button class="btn-ghost" id="themeBtn">Toggle Theme</button>
-      <button class="btn-ghost" id="exportBtn">Export JSON</button>
+      <button class="btn-ghost btn-sm" id="themeBtn">🎨 Theme</button>
+      <button class="btn-ghost btn-sm" id="exportBtn">📦 Export</button>
     </div>
   </div>
 
+  <!-- MAIN CARD -->
   <div class="card">
-    <h2>Activation</h2>
-    <div class="sub">Masukkan email, kirim, lalu verifikasi dengan link dari email.</div>
+    <h2>⚔️ Activation</h2>
+    <div class="sub">❤ Enter your email. FIGHT the limit. ACT to activate.</div>
 
+    <!-- STATS -->
     <div class="stats">
-      <div class="stat">
-        <div class="label">Total</div>
+      <div class="stat hp">
+        <div class="label">❤ HP (Total)</div>
         <div class="value" id="totalCount">0</div>
       </div>
-      <div class="stat">
-        <div class="label">Success</div>
+      <div class="stat exp">
+        <div class="label">⭐ EXP (Success)</div>
         <div class="value" id="successCount">0</div>
       </div>
-      <div class="stat">
-        <div class="label">Failed</div>
+      <div class="stat soul">
+        <div class="label">💀 SOUL (Failed)</div>
         <div class="value" id="failedCount">0</div>
       </div>
-      <div class="stat">
-        <div class="label">Today</div>
+      <div class="stat gold">
+        <div class="label">💰 GOLD (Today)</div>
         <div class="value" id="todayCount">0</div>
       </div>
     </div>
 
+    <!-- EMAIL -->
     <div class="field">
-      <label for="email">Email AlightMotion</label>
-      <input id="email" type="email" placeholder="contoh@gmail.com" autocomplete="email" />
+      <label for="email">📧 Email</label>
+      <input id="email" type="email" placeholder="your@email.com" autocomplete="email" />
     </div>
 
+    <!-- LINK -->
     <div class="field" id="linkField" style="display:none;">
-      <label for="link">Link Verifikasi (dari email)</label>
+      <label for="link">🔗 Verification Link</label>
       <input id="link" type="text" placeholder="https://alight-creative.firebaseapp.com/..." />
     </div>
 
+    <!-- TAG -->
     <div class="field">
-      <label for="tag">Tag (opsional)</label>
-      <input id="tag" type="text" placeholder="misal: user1" />
+      <label for="tag">🏷️ Tag (optional)</label>
+      <input id="tag" type="text" placeholder="ex: user1" />
     </div>
 
+    <!-- PROGRESS -->
     <div class="progress">
       <div class="steps">
-        <div class="step active" data-step="0">Send</div>
-        <div class="step">Waiting</div>
-        <div class="step">Verify</div>
-        <div class="step">Done</div>
+        <div class="step active" data-step="0">⚡ SEND</div>
+        <div class="step" data-step="1">⏳ WAIT</div>
+        <div class="step" data-step="2">🔍 VERIFY</div>
+        <div class="step" data-step="3">⭐ DONE</div>
       </div>
       <div class="bar"><div id="barFill"></div></div>
     </div>
 
+    <!-- CONTROLS -->
     <div class="controls">
-      <button class="btn-primary" id="actionBtn">Send</button>
-      <button class="btn-ghost" id="copyBtn" style="display:none;">Copy Link</button>
-      <button class="btn-ghost" id="clearBtn">Clear</button>
+      <button class="btn-primary" id="actionBtn">⚔️ SEND</button>
+      <button class="btn-action" id="copyBtn" style="display:none;">📋 COPY</button>
+      <button class="btn-danger" id="clearBtn">🗑️ CLEAR</button>
     </div>
 
+    <!-- STATUS -->
     <div class="status" id="statusBox">
-      <strong id="statusTitle">Ready</strong>
-      <p id="statusText">Isi email lalu kirim.</p>
+      <strong id="statusTitle">❤ READY</strong>
+      <p id="statusText">Enter your email and press SEND.</p>
     </div>
   </div>
 
-  <div class="card" style="margin-top:18px;">
-    <h2>Log & History</h2>
+  <!-- LOG & HISTORY -->
+  <div class="card">
+    <h2>📜 Log & History</h2>
+    <div class="sub">Every action leaves a trace.</div>
     <div class="log" id="log"></div>
-    <h2 style="margin-top:18px;">History</h2>
+    <h2 style="margin-top:16px; font-size:12px;">📖 History</h2>
     <div class="history" id="history"></div>
   </div>
+
 </div>
 
+<!-- TOAST -->
 <div class="toast" id="toast"></div>
+
+<!-- CONFETTI -->
 <div class="confetti" id="confetti"></div>
 
+<!-- SCRIPT -->
 <script src="script.js"></script>
+
+<script>
+  // ============================================================
+  //  FALLING SOULS BACKGROUND
+  // ============================================================
+  (function createSouls() {
+    const container = document.getElementById('bgSouls');
+    const souls = ['❤', '✦', '⭐', '♦', '♥', '♠', '♣'];
+    for (let i = 0; i < 25; i++) {
+      const span = document.createElement('span');
+      span.textContent = souls[Math.floor(Math.random() * souls.length)];
+      span.style.left = Math.random() * 100 + '%';
+      span.style.fontSize = (12 + Math.random() * 24) + 'px';
+      span.style.animationDuration = (15 + Math.random() * 30) + 's';
+      span.style.animationDelay = (Math.random() * 30) + 's';
+      container.appendChild(span);
+    }
+  })();
+</script>
+
 </body>
 </html>
